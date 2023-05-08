@@ -1,7 +1,7 @@
 using import String
 using import testing
 
-using import .strfmt
+using import strfmt
 
 let ABC = 123
 let CDE = 345
