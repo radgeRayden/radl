@@ -86,7 +86,7 @@ struct FileStream
             if (not ('eof? self))
                 raise FileError.ReadError
 
-        # resizing downwards is non destructive
+        # resizing downwards doesn't reallocate
         'resize result elements-read
         result
 
