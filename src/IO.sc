@@ -127,6 +127,20 @@ struct FileStream
                     'resize chunk i
                     'seek self (((i + 1) as i64) - chunk-size)
                     return (result .. chunk)
+                elseif (c == "\r")
+                    local next-byte : i8
+                    if (i == (countof chunk))
+                        fread (&next-byte as voidstar) 1 1 self._handle
+                    else
+                        next-byte = chunk @ (i + 1)
+
+                    if (next-byte == "\n")
+                        'seek self (((i + 2) as i64) - chunk-size)
+                    else
+                        'seek self (((i + 1) as i64) - chunk-size)
+
+                    'resize chunk i
+                    return (result .. chunk)
 
             result ..= chunk
 
