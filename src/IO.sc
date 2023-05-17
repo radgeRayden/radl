@@ -132,6 +132,18 @@ struct FileStream
 
         result
 
+    inline lines (self)
+        Generator
+            inline start ()
+                'rewind self
+                self
+            inline valid? (self)
+                not ('eof? self)
+            inline current (self)
+                'read-line self
+            inline next (self)
+                self
+
     fn eof? (self)
         (feof self._handle) as bool
 
@@ -143,13 +155,6 @@ struct FileStream
             raise FileError.WriteError
     case (self, data : Array)
         this-function self data 0 (countof data)
-
-try
-    file := FileStream "IO.sc" FileMode.Read
-    while (not ('eof? file))
-        print ('read-line file)
-else
-    ;
 
 do
     let FileStream
