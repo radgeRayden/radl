@@ -118,14 +118,11 @@ struct FileStream
             if (bytes-read < chunk-size)
                 if (not ('eof? self))
                     raise FileError.ReadError
-                else
-                    'resize chunk bytes-read
-                    return (result .. chunk)
 
             for i c in (enumerate chunk)
                 if (c == "\n")
                     'resize chunk i
-                    'seek self (((i + 1) as i64) - chunk-size)
+                    'seek self (((i + 1) as i64) - (bytes-read as i64))
                     return (result .. chunk)
                 elseif (c == "\r")
                     local next-byte : i8
@@ -134,10 +131,11 @@ struct FileStream
                     else
                         next-byte = chunk @ (i + 1)
 
+                    bytes-read as:= i64
                     if (next-byte == "\n")
-                        'seek self (((i + 2) as i64) - chunk-size)
+                        'seek self (((i + 2) as i64) - bytes-read)
                     else
-                        'seek self (((i + 1) as i64) - chunk-size)
+                        'seek self (((i + 1) as i64) - bytes-read)
 
                     'resize chunk i
                     return (result .. chunk)
@@ -150,13 +148,13 @@ struct FileStream
         Generator
             inline start ()
                 'rewind self
-                self
+                view self
             inline valid? (self)
                 not ('eof? self)
             inline current (self)
                 'read-line self
             inline next (self)
-                self
+                view self
 
     fn eof? (self)
         (feof self._handle) as bool
@@ -164,7 +162,7 @@ struct FileStream
     fn... write (self, data : Array, offset : usize, count : usize)
         ptr := (& (data @ offset)) as voidstar
         element-size := sizeof ((typeof data) . ElementType)
-        elements-written := fwrite ptr element-size count
+        elements-written := fwrite ptr element-size count self._handle
         if (elements-written < count)
             raise FileError.WriteError
     case (self, data : Array)
