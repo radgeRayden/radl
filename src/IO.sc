@@ -171,5 +171,5 @@ struct FileStream
         this-function self data 0 (countof data)
 
 do
-    let FileStream
+    let FileStream FileMode FileError
     locals;
