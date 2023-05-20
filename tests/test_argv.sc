@@ -16,26 +16,40 @@ do
     test ((string (argv @ 1)) == "-a")
     test ((string (argv @ 2)) == "bcdfghi")
 
-sugar-if false
-    arg-parser :=
-        define-argv
+do
+    fn build (input output)
+        print input output
+    fn run (input output)
+        print input output
+
+    parse-args :=
+        define-argv-parser
             subcommand build
-                arg input : String
-                    positional
-                    "-i"
-                    "--input"
-                arg? output : String
-                    positional
-                    "-o"
-                    "--output"
+                arg input : String {positional, "-i", "--input"}
+                arg? output : String {positional, "-o", "--output"}
                     default = "{input}.bin"
                 flag display-help? "h" "--help"
-
+                execute
+                    build input output
             alias (compile = build) # substitutes a command for another
             subcommand run < build # inherits args from build
+                execute
+                    run input output
+            # optional, default looks like this
+            subcommand usage
+                execute
+                    print usage
+                    exit 1
+            options
+                default-subcommand = build # if no sub is specified, uses this. If ommitted, defaults to showing usage.
+                flag-enable-prefix = "-" # optional, default '-'
+                flag-disable-prefix = none # no flag disable, optional
 
-            default-subcommand = build # if sub is ommitted, we use build
+    argc argv := build-argv "assembler" "-i" "hello.s" "hello.bin"
+    parse-args argc argv
+    0
 
+sugar-if false
     bottle-args :=
         define-argv
             subcommand demo
