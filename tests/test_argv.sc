@@ -4,13 +4,13 @@ using import argv
 inline build-argv (args...)
     local argv =
         arrayof rawstring args...
-    &argv as (@ rawstring)
+    _ (va-countof args...) (&argv as (@ rawstring))
 
 do
-    argv := build-argv "-a" "bcdfghi"
+    argc argv := build-argv "-a" "bcdfghi"
 
     # normal usage: `normalize-script-args (script-launch-args)'
-    argc argv := (normalize-script-args "test_argv" 2 argv)
+    argc argv := (normalize-script-args "test_argv" argc argv)
     test (argc == 3)
     test ((string (argv @ 0)) == "test_argv")
     test ((string (argv @ 1)) == "-a")
