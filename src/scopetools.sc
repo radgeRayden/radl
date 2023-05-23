@@ -19,6 +19,10 @@ spice scope-unpack (self)
     sc_argument_list_map_new ((countof values) as i32)
         (i) -> (values @ i)
 
+spice static-join-scopes (...)
+    fold (result = (Scope)) for s in ('args ...)
+        .. result (s as Scope)
+
 sugar make-scope (...)
     if (empty? (... as list))
         qq
@@ -35,6 +39,4 @@ sugar make-scope (...)
             'define-symbols [(Scope)]
                 unquote-splice kpairs
 
-do
-    let scope-string-keys scope-unpack make-scope
-    locals;
+locals;
