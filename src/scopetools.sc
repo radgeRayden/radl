@@ -35,8 +35,15 @@ sugar make-scope (...)
             else
                 uncomma ...
 
+        vvv bind kpairs
+        fold (result = '()) for kpair in ('reverse kpairs)
+            cons
+                cons `let (kpair as list)
+                result
+
         qq
-            'define-symbols [(Scope)]
+            [do]
                 unquote-splice kpairs
+                [locals];
 
 locals;
