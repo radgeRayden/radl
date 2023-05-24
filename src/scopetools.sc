@@ -46,4 +46,15 @@ sugar make-scope (...)
                 unquote-splice kpairs
                 [locals];
 
+spice scope-key-lookup (scope key f)
+    using import String
+    scope as:= Scope
+
+    sw := (sc_switch_new `(hash (String key)))
+    sc_switch_append_default sw `(f none)
+    for k v in scope
+        k := k as Symbol as string
+        sc_switch_append_case sw `[(hash k)] `(f v)
+    sw
+
 locals;
