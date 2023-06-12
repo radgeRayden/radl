@@ -69,7 +69,10 @@ do
         # in cases with range params, for ease of use we're gonna output the same type as inputs.
         # In the case of floats, the fractional part is discarded via casting.
         case (self, upper-bound,)
-            assert (upper-bound > 0)
+            upper-bound := ? (upper-bound < 0) -upper-bound upper-bound
+            if (upper-bound == 0)
+                return 0
+
             let result =
                 bounded-random self (upper-bound as u64)
             result as (typeof upper-bound)
@@ -77,13 +80,14 @@ do
             inputT := (typeof lower-bound)
             # guarantee both inputs are of same type or equivalent
             imply upper-bound inputT
-            assert (upper-bound > lower-bound)
 
             # lose fractional part if present, use signed because bounds can be negative
             lower-bound as:= i64
             upper-bound as:= i64
-            # offset the range to zero - diff is always positive
-            let diff = (upper-bound - lower-bound)
+            # offset the range to zero
+            diff := upper-bound - lower-bound
+            # ensure diff is more than zero
+            diff := ? (diff < 0) -diff diff
             let result =
                 this-function self (diff as u64)
             # restore original range
