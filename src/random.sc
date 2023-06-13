@@ -71,7 +71,7 @@ do
         case (self, upper-bound,)
             upper-bound := ? (upper-bound < 0) -upper-bound upper-bound
             if (upper-bound == 0)
-                return 0
+                return ((typeof upper-bound) 0)
 
             let result =
                 bounded-random self (upper-bound as u64)
