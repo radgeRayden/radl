@@ -149,7 +149,7 @@ spice interpolate (fmt args...)
             inline (n)
                 args @ n
     spice-quote
-        format fmt arglist
+        format [(fmt as string)] arglist
 
 spice va-format (sep args...)
     sep as:= string
@@ -170,7 +170,7 @@ spice va-format (sep args...)
             inline (n)
                 args @ n
     spice-quote
-        format fmt arglist
+        format [(fmt as string)] arglist
 
 sugar prefix:f (str)
     let chunked = (parse-template (str as string))
