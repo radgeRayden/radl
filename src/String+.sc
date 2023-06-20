@@ -36,6 +36,19 @@ fn split (input separator)
             next := rslice next end
             _ next (scan next separator)
 
+fn common-prefix (a b)
+    for idx in (range (min (countof a) (countof b)))
+        if ((a @ idx) != (b @ idx))
+            return (lslice a idx)
+    copy a
+
+fn common-suffix (a b)
+    for offset in (range (min (countof a) (countof b)))
+        idxa idxb := (countof a) - offset - 1, (countof b) - offset - 1
+        if ((a @ idxa) != (b @ idxb))
+            return (rslice a (idxa + 1))
+    copy a
+
 do
-    let scan replace split
+    let scan replace split common-prefix common-suffix
     local-scope;
