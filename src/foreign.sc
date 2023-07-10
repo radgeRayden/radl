@@ -62,7 +62,7 @@ sugar foreign (body...)
             vvv bind parsed-constants
             fold (constants = constants) for const in constants...
                 if (('typeof const) != Symbol)
-                    error@ ('anchor const) "while parsing constants" "non symbol constant forbidden"
+                    trace-error "while parsing constants" "non symbol constant forbidden"
                 const as:= Symbol
                 c-code ..= gen-constant-wrapper-fn const
 
@@ -81,7 +81,7 @@ sugar foreign (body...)
             vvv bind filtered
             fold (filtered = namespaces) for namespace in namespaces...
                 if (('typeof namespace) != Symbol)
-                    error@ ('anchor namespace) "while parsing namespaces" "non symbol namespace forbidden"
+                    trace-error "while parsing namespaces" "non symbol namespace forbidden"
                 namespace as:= Symbol
                 name := Symbol (string ("module-" .. (tostring namespace)))
 
@@ -100,10 +100,10 @@ sugar foreign (body...)
             _ next c-code namespaces constants extra-symbols
 
     c-code as:= string
-    vvv bind result
+    module-sym := 'unique Symbol "scopes-module"
     qq
         [embed]
-        [let] *scopes-module* =
+        [let] [module-sym] =
             [do]
                 [let] header =
                     [include] [c-code]
@@ -112,12 +112,10 @@ sugar foreign (body...)
                     [filter-scope] (header . extern) [constant-wrapper-regexp]
         [run-stage];
         [do]
-            [using] *scopes-module*
+            [using] [module-sym]
             unquote-splice constants
             unquote-splice extra-symbols
             [locals];
-
-    result
 
 do
     let filter-scope foreign
