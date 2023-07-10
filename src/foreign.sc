@@ -78,18 +78,31 @@ sugar foreign (body...)
         case ('options options...)
             _ next c-code namespaces constants extra-symbols
         case ('export 'from (curly-list namespaces...) 'matching regexp)
-            vvv bind filtered
-            fold (filtered = namespaces) for namespace in namespaces...
+            vvv bind exported
+            fold (exported = namespaces) for namespace in namespaces...
                 if (('typeof namespace) != Symbol)
                     trace-error "while parsing namespaces" "non symbol namespace forbidden"
                 namespace as:= Symbol
-                name := Symbol (string ("module-" .. (tostring namespace)))
+                name := 'unique Symbol (string ("module-" .. (tostring namespace)))
 
                 cons
                     qq [let] [name] = ([filter-scope] (header . [namespace]) [(regexp as string)])
-                    filtered
+                    exported
 
-            _ next c-code (namespaces .. filtered) constants extra-symbols
+            _ next c-code exported constants extra-symbols
+        case ('export 'from (curly-list namespaces...))
+            vvv bind exported
+            fold (exported = namespaces) for namespace in namespaces...
+                if (('typeof namespace) != Symbol)
+                    trace-error "while parsing namespaces" "non symbol namespace forbidden"
+                namespace as:= Symbol
+                name := 'unique Symbol (string ("module-" .. (tostring namespace)))
+
+                cons
+                    qq [let] [name] = (header . [namespace])
+                    exported
+
+            _ next c-code exported constants extra-symbols
         case ('appending extras...)
             extra-symbols :=
                 cons
