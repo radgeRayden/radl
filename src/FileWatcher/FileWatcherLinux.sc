@@ -1,5 +1,6 @@
 using import Array
 using import enum
+using import hash
 using import Map
 using import Rc
 using import String
@@ -25,15 +26,27 @@ type WatchDescriptor < (opaque "InotifyWatchDescriptor") :: i32
             inline (incoming)
                 bitcast incoming thisT
 
+    inline __== (thisT otherT)
+        static-if (thisT == otherT)
+            inline (self other)
+                (storagecast (view self)) == (storagecast (view other))
+
 struct WatchedFile
-    path : String
     descriptor : (Rc WatchDescriptor)
-    callback : FileWatchCallback
+    name : String
+
+    inline __hash (self)
+        hash (hash self.descriptor) (hash self.name)
+
+    inline __== (thisT otherT)
+        static-if (thisT == otherT)
+            inline (self other)
+                and (self.descriptor == other.descriptor) (self.name == other.name)
 
 struct FileWatcher
     _handle : i32
     watched-dirs : (Map String (Rc WatchDescriptor))
-    watched-files : (Map String WatchedFile)
+    file-callbacks : (Map WatchedFile FileWatchCallback)
 
     inline __typecall (cls)
         handle := (inotify.init1 inotify.IN_NONBLOCK)
@@ -72,23 +85,34 @@ struct FileWatcher
                 Rc.wrap (imply wd WatchDescriptor)
 
 
-        'set self.watched-files (copy path)
-            WatchedFile (copy path) (copy wd) callback
-        'set self.watched-dirs (copy path) (copy wd)
+        'set self.file-callbacks
+            WatchedFile (copy wd) (copy path)
+            callback
+        'set self.watched-dirs (copy dir) (copy wd)
         ()
 
     fn... unwatch (self, path : String)
         local path = copy path
         dir file := 'from-rawstring String (libgen.dirname path), 'from-rawstring String (libgen.basename path)
         if (file == "")
-            raise FileWatchError.NotAFile
+            return;
 
         let wd =
             try ('get self.watched-dirs dir)
-            else (raise FileWatchError.NotWatching)
+            else (return)
 
-        if (('strong-count wd) == 1)
-            inotify.rm_watch self._handle wd
+        do
+            cb-key := (WatchedFile (copy wd) (copy path))
+            if ('in? self.file-callbacks cb-key)
+                'discard self.file-callbacks cb-key
+            else
+                return;
+
+        refT := (Rc WatchDescriptor)
+        print (refT.strong-count wd)
+        if ((refT.strong-count wd) == 1)
+            print "discarding"
+            inotify.rm_watch self._handle (storagecast (view (imply wd WatchDescriptor)))
             'discard self.watched-dirs dir
 
     fn dispatch-events (self)
@@ -107,6 +131,7 @@ struct FileWatcher
 
                 event := bitcast (& (buf @ offset)) (@ inotify.event)
                 # TODO: dispatch callback
+                #
                 offset + (sizeof inotify.event) + event.len
 
     inline __drop (self)
