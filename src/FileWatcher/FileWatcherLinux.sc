@@ -88,3 +88,7 @@ struct FileWatcher
 
     inline __drop (self)
         unistd.close self.handle
+
+do
+    let FileWatcher
+    local-scope;
