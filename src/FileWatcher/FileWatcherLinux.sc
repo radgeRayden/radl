@@ -18,16 +18,21 @@ enum FileWatchError plain
     NotAFile
     NotWatching
 
-FileWatchCallback := (@ (function (void (viewof String 1) FileEventType)))
+FileWatchCallback := (@ (function void (viewof String 1) FileEventType))
+type WatchDescriptor < (opaque "InotifyWatchDescriptor") :: i32
+    inline __rimply (otherT thisT)
+        static-if (otherT == (storageof thisT))
+            inline (incoming)
+                bitcast incoming thisT
 
 struct WatchedFile
     path : String
-    descriptor : (Rc i32)
+    descriptor : (Rc WatchDescriptor)
     callback : FileWatchCallback
 
 struct FileWatcher
-    handle : i32
-    watched-dirs : (Map String (Rc i32))
+    _handle : i32
+    watched-dirs : (Map String (Rc WatchDescriptor))
     watched-files : (Map String WatchedFile)
 
     inline __typecall (cls)
@@ -46,28 +51,30 @@ struct FileWatcher
             raise FileWatchError.NotAFile
 
         using inotify filter "^IN_"
-        mask := | IN_ONLYDIR IN_CREATE
+        mask := | IN_ONLYDIR IN_CREATE IN_MODIFY
         let wd =
-            'getdefault self.watched-dirs dir
-                inotify.add_watch self.handle dir inotify.IN_MOVE
+            try
+                copy ('get self.watched-dirs dir)
+            else
+                wd := inotify.add_watch self._handle dir mask
+                if (wd == -1)
+                    using C.errno
+                    switch (errno)
+                    case EACCES
+                        raise FileWatchError.AccessDenied
+                    case ENOENT
+                        raise FileWatchError.NotFound
+                    case ENOTDIR
+                        raise FileWatchError.NotFound
+                    default
+                        using import ..strfmt
+                        assert false f"Unhandled error while trying to watch file: ${path}"
+                Rc.wrap (imply wd WatchDescriptor)
 
-        if (wd == -1)
-            using C.errno
-            switch (errno)
-            case EACCES
-                raise FileWatchError.AccessDenied
-            case ENOENT
-                raise FileWatchError.NotFound
-            case ENOTDIR
-                raise FileWatchError.NotFound
-            default
-                using import ..strfmt
-                assert false f"Unhandled error while trying to watch file: ${path}"
 
-        ref := Rc.wrap wd
         'set self.watched-files (copy path)
-            WatchedFile (copy path) ('upgrade (copy ref)) callback
-        'set self.watched-dirs (copy path) (copy ref)
+            WatchedFile (copy path) (copy wd) callback
+        'set self.watched-dirs (copy path) (copy wd)
         ()
 
     fn... unwatch (self, path : String)
@@ -81,13 +88,29 @@ struct FileWatcher
             else (raise FileWatchError.NotWatching)
 
         if (('strong-count wd) == 1)
-            inotify.rm_watch self.handle wd
+            inotify.rm_watch self._handle wd
             'discard self.watched-dirs dir
 
-    fn poll (self)
+    fn dispatch-events (self)
+        local buf : (array i8 4096)
+        loop ()
+            data-size := unistd.read self._handle &buf (sizeof buf)
+            if (data-size == -1)
+                using import C.errno
+                err := (errno)
+                assert (err == EAGAIN or err == EWOULDBLOCK)
+                break;
+
+            loop (offset = 0:i64)
+                if (offset >= data-size)
+                    break;
+
+                event := bitcast (& (buf @ offset)) (@ inotify.event)
+                # TODO: dispatch callback
+                offset + (sizeof inotify.event) + event.len
 
     inline __drop (self)
-        unistd.close self.handle
+        unistd.close self._handle
 
 do
     let FileWatcher

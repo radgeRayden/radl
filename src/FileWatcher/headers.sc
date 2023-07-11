@@ -10,6 +10,7 @@ sugar-if linux?
             header := include "sys/inotify.h"
             ..
                 filter-scope header.extern "^inotify_"
+                filter-scope header.struct "^inotify_"
                 filter-scope header.define "^(?=IN_)"
                 do
                     IN_MOVE := header.define.IN_MOVED_FROM | header.define.IN_MOVED_TO
