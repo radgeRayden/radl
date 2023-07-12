@@ -12,6 +12,8 @@ using import .headers
 
 enum FileEventType plain
     Modified
+    Deleted
+    Created
 
 enum FileWatchError plain
     NotFound
@@ -70,7 +72,7 @@ struct FileWatcher
             raise FileWatchError.NotAFile
 
         using inotify filter "^IN_"
-        mask := | IN_ONLYDIR IN_CREATE IN_MODIFY
+        mask := | IN_ONLYDIR IN_CREATE IN_MODIFY IN_DELETE
         let wd =
             try
                 copy ('get self.watch-descriptors dir)
@@ -134,6 +136,7 @@ struct FileWatcher
 
                 event := bitcast (& (buf @ offset)) (@ inotify.event)
 
+                # NOTE: this event handling is not comprehensive. I intend to improve it as I use the library.
                 :: dispatch-callback
                 if (not event.len)
                     merge dispatch-callback
@@ -144,8 +147,18 @@ struct FileWatcher
                     cb-key := WatchedFile event.wd (copy path)
                     cb := ('get self.file-callbacks cb-key)
 
-                    # TODO: actually check event mask
-                    cb path FileEventType.Modified
+                    vvv bind evtype
+                    do (using inotify filter "^IN_")
+                        mask := event.mask
+                        if (mask & IN_CREATE)
+                            FileEventType.Created
+                        elseif (mask & IN_DELETE)
+                            FileEventType.Deleted
+                        elseif (mask & IN_MODIFY)
+                            FileEventType.Modified
+                        else (merge dispatch-callback)
+
+                    cb path evtype
                 else ()
                 dispatch-callback ::
 
