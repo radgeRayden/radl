@@ -26,4 +26,10 @@ sugar-if linux?
 
     local-scope;
 elseif windows?
+    windows :=
+        do
+            header := include "windows.h"
+            shlwapi := include "shlwapi.h"
+            pathcch := include "pathcch.h"
+            .. header.extern header.define header.typedef shlwapi.extern pathcch.extern
     local-scope;
