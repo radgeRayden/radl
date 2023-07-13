@@ -46,27 +46,33 @@ fn... full-path (path : WideStringView)
     buf := windows._wfullpath null ('data path) windows.MAX_PATH
     WideString buf ((windows.wcslen buf) + 1)
 
-fn... dirname (path : WideStringView)
+fn... split-path (path : WideStringView)
     path := full-path path
-    windows.PathCchRemoveFileSpec ('data path)
-    winstr->UTF-8 ('from-widestring WideStringView path)
 
-fn basename (path : PathStringView)
-    filename := heapbuffer u16 windows.MAX_PATH
-    extension := heapbuffer u16 windows.MAX_PATH
+    drive := heapbuffer u16 windows.MAX_PATH
+    dir := heapbuffer u16 windows.MAX_PATH
+    file := heapbuffer u16 windows.MAX_PATH
+    ext := heapbuffer u16 windows.MAX_PATH
 
-    filename-ptr filename-size := 'data filename
-    extension-ptr extension-size := 'data extension
-    windows._wsplitpath_s ('data path) null 0 null 0 filename-ptr filename-size extension-ptr extension-size
+    drive-ptr drive-size   := 'data drive
+    dir-ptr dir-size       := 'data dir
+    file-ptr file-size := 'data file
+    ext-ptr ext-size       := 'data ext
+    windows._wsplitpath_s ('data path) \
+        drive-ptr drive-size dir-ptr dir-size file-ptr file-size ext-ptr ext-size
     
-    filepath := heapbuffer u16 windows.MAX_PATH
-    path-ptr path-size := 'data filepath
-    windows._wmakepath_s path-ptr path-size null null ('data filename) ('data extension) ()
-    winstr->UTF-8 filepath
+    lhs-path := heapbuffer u16 windows.MAX_PATH
+    lhs-path-ptr lhs-path-size := 'data lhs-path
+    windows._wmakepath_s lhs-path-ptr lhs-path-size ('data drive) ('data dir) null null
+    rhs-path := heapbuffer u16 windows.MAX_PATH
+    rhs-path-ptr rhs-path-size := 'data rhs-path
+    windows._wmakepath_s rhs-path-ptr rhs-path-size null null ('data file) ('data ext) ()
+    
+    _ lhs-path rhs-path
 
 print (winstr->UTF-8 (winstr S"ẝ𝓸ĺ𝑑è𝖗"))
-path := winstr S"./blah/bluh/"
-print (dirname path)
+path := winstr S"./blah/bluh"
+print (va-map winstr->UTF-8 (split-path path))
 struct FileWatcher
 
 do
