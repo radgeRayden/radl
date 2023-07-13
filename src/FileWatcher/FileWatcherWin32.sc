@@ -12,7 +12,11 @@ typedef WideStringView
         T.ElementType == u16
     
     inline __rimply (cls T)
-        inline (self) (lslice (view self) (countof self))
+        inline (self) 
+            static-if ((typeof self) == T)
+                self
+            else
+                lslice (view self) (countof self)
 
     inline from-widestring (cls wstr)
         lslice (view wstr) ((windows.wcslen ('data wstr) ()) + 1)
@@ -38,22 +42,16 @@ fn... winstr->UTF-8 (widestr : WideStringView)
     assert (len == written)
     'from-rawstring String ('data i8buf)
 
-fn... full-pathW (wpath : WideString)
-    relative? := windows.PathIsRelativeW ('data wpath) ()
-    if relative?
-        buf := windows._wfullpath null ('data wpath) windows.MAX_PATH
-        WideString buf ((windows.wcslen buf) + 1)
-    else
-        copy wpath
+fn... full-path (path : WideStringView)
+    buf := windows._wfullpath null ('data path) windows.MAX_PATH
+    WideString buf ((windows.wcslen buf) + 1)
 
-fn dirname (path)
-    pathw := winstr path
-    full-path := full-pathW pathw
-    windows.PathCchRemoveFileSpec ('data full-path)
-    winstr->UTF-8 ('from-widestring WideStringView full-path)
+fn... dirname (path : WideStringView)
+    path := full-path path
+    windows.PathCchRemoveFileSpec ('data path)
+    winstr->UTF-8 ('from-widestring WideStringView path)
 
-fn basename (path)
-    path := winstr path
+fn basename (path : PathStringView)
     filename := heapbuffer u16 windows.MAX_PATH
     extension := heapbuffer u16 windows.MAX_PATH
 
@@ -67,7 +65,8 @@ fn basename (path)
     winstr->UTF-8 filepath
 
 print (winstr->UTF-8 (winstr S"ẝ𝓸ĺ𝑑è𝖗"))
-print (dirname S"./blah/bluh")
+path := winstr S"./blah/bluh/"
+print (dirname path)
 struct FileWatcher
 
 do
