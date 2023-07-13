@@ -14,7 +14,7 @@ typedef WideStringView
     inline __rimply (cls T)
         inline (self) (lslice (view self) (countof self))
 
-    inline from-widestring (wstr)
+    inline from-widestring (cls wstr)
         lslice (view wstr) ((windows.wcslen ('data wstr) ()) + 1)
     
 fn winstr (str)
@@ -67,6 +67,7 @@ fn basename (path)
     winstr->UTF-8 filepath
 
 print (winstr->UTF-8 (winstr S"ẝ𝓸ĺ𝑑è𝖗"))
+print (dirname S"./blah/bluh")
 struct FileWatcher
 
 do
