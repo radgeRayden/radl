@@ -1,64 +1,61 @@
 using import Array
+using import Buffer
+using import Slice
 using import String
 using import struct
 using import .headers
 
-WideString := (Array u16)
+WideString := (static-eval (typeof (heapbuffer u16 1)))
 
 fn winstr (str)
     ptr size := 'data str
+    # NOTE: we add 1 to the size because 'data ignores the null terminator as of 2023/07/13
+    size := size + 1
     len := windows.MultiByteToWideChar windows.CP_UTF8 0 ptr (size as i32) null 0
-    
-    local result : WideString (capacity = ((len + 1) as usize))
-    'resize result ((len + 1) as usize)
-    u16buf := (imply result pointer) as (mutable@ u16)
 
-    windows.MultiByteToWideChar windows.CP_UTF8 0 ptr (size as i32) u16buf len
+    result := heapbuffer u16 len
+    written := 
+        windows.MultiByteToWideChar windows.CP_UTF8 0 ptr (size as i32) ('data result) len
+    assert (len == written)
     result
 
-fn... winstr->UTF-8 (ptr : (mutable@ u16), size : usize)
-    len := windows.WideCharToMultiByte windows.CP_UTF8 0 ptr (size as i32) null 0 null null
+# TODO: write WideString typematcher
+fn... winstr->UTF-8 (widestr)
+    wptr wsize := 'data widestr
+    len := windows.WideCharToMultiByte windows.CP_UTF8 0 wptr (wsize as i32) null 0 null null
 
-    local result : String (capacity = ((len + 1) as usize))
-    'resize result ((len + 1) as usize)
-    i8buf := (imply result pointer) as (mutable@ i8)
+    i8buf := heapbuffer i8 len
+    written := windows.WideCharToMultiByte windows.CP_UTF8 0 wptr (wsize as i32) ('data i8buf) len null null
+    assert (len == written)
+    'from-rawstring String ('data i8buf)
 
-    windows.WideCharToMultiByte windows.CP_UTF8 0 ptr (size as i32) i8buf len null null
-    result
-case (data : WideString)
-    this-function ('data data)
-
-fn... full-pathW (path : String)
-    wpath := winstr path
-    relative? := windows.PathIsRelativeW wpath
+fn... full-pathW (wpath : WideString)
+    relative? := windows.PathIsRelativeW ('data wpath) ()
     if relative?
-        buf := windows._wfullpath null wpath windows.MAX_PATH
-        result := 'wrap WideString buf ((windows.wcslen buf) + 1)
-        free buf
-        result
+        buf := windows._wfullpath null ('data wpath) windows.MAX_PATH
+        WideString buf ((windows.wcslen buf) + 1)
     else
-        wpath
+        copy wpath
 
-fn dirnameW (pathw)
-    local pathw = copy pathw
-    windows.PathCchRemoveFileSpec ('data pathw)
-    pathw
+fn dirname (path)
+    pathw := winstr path
+    full-path := full-pathW pathw
+    windows.PathCchRemoveFileSpec ('data full-path)
+    winstr->UTF-8 (lslice (view full-path) ((windows.wcslen ('data full-path) ()) + 1))
 
 fn basename (path)
-    local path = winstr path
-
-    local filename : WideString (capacity = windows.MAX_PATH)
-    'resize filename windows.MAX_PATH
-    local extension : WideString (capacity = windows.MAX_PATH)
-    'resize extension windows.MAX_PATH
+    path := winstr path
+    filename := heapbuffer u16 windows.MAX_PATH
+    extension := heapbuffer u16 windows.MAX_PATH
 
     filename-ptr filename-size := 'data filename
     extension-ptr extension-size := 'data extension
-    windows._wsplitpath_s path null 0 null 0 filename-ptr filename-size extension-ptr extension-size
+    windows._wsplitpath_s ('data path) null 0 null 0 filename-ptr filename-size extension-ptr extension-size
     
-    path-ptr path-size := 'data path
-    windows._wmakepath_s path-ptr path-size null null filename extension
-    winstr->UTF-8 path
+    filepath := heapbuffer u16 windows.MAX_PATH
+    path-ptr path-size := 'data filepath
+    windows._wmakepath_s path-ptr path-size null null ('data filename) ('data extension) ()
+    winstr->UTF-8 filepath
 
 struct FileWatcher
 
