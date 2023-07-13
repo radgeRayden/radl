@@ -5,8 +5,18 @@ using import String
 using import struct
 using import .headers
 
-WideString := (static-eval (typeof (heapbuffer u16 1)))
+WideString := (typeof (heapbuffer u16 1))
 
+typedef WideStringView
+    inline __typematch (cls T)
+        T.ElementType == u16
+    
+    inline __rimply (cls T)
+        inline (self) (lslice (view self) (countof self))
+
+    inline from-widestring (wstr)
+        lslice (view wstr) ((windows.wcslen ('data wstr) ()) + 1)
+    
 fn winstr (str)
     ptr size := 'data str
     # NOTE: we add 1 to the size because 'data ignores the null terminator as of 2023/07/13
@@ -19,8 +29,7 @@ fn winstr (str)
     assert (len == written)
     result
 
-# TODO: write WideString typematcher
-fn... winstr->UTF-8 (widestr)
+fn... winstr->UTF-8 (widestr : WideStringView)
     wptr wsize := 'data widestr
     len := windows.WideCharToMultiByte windows.CP_UTF8 0 wptr (wsize as i32) null 0 null null
 
@@ -41,7 +50,7 @@ fn dirname (path)
     pathw := winstr path
     full-path := full-pathW pathw
     windows.PathCchRemoveFileSpec ('data full-path)
-    winstr->UTF-8 (lslice (view full-path) ((windows.wcslen ('data full-path) ()) + 1))
+    winstr->UTF-8 ('from-widestring WideStringView full-path)
 
 fn basename (path)
     path := winstr path
@@ -57,6 +66,7 @@ fn basename (path)
     windows._wmakepath_s path-ptr path-size null null ('data filename) ('data extension) ()
     winstr->UTF-8 filepath
 
+print (winstr->UTF-8 (winstr S"ẝ𝓸ĺ𝑑è𝖗"))
 struct FileWatcher
 
 do
