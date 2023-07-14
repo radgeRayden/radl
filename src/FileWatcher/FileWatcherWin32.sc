@@ -29,7 +29,7 @@ type+ WideStringView
     inline from-widestring (cls wstr)
         lslice (view wstr) ('buffer-length wstr)
 
-fn winstr (str)
+fn UTF-8->WideString (str)
     ptr size := 'data str
     # NOTE: we add 1 to the size because 'data ignores the null terminator as of 2023/07/13
     size := size + 1
@@ -41,7 +41,7 @@ fn winstr (str)
     assert (len == written)
     result
 
-fn... winstr->UTF-8 (widestr : WideStringView)
+fn... WideString->UTF-8 (widestr : WideStringView)
     wptr wsize := 'data widestr
     len := windows.WideCharToMultiByte windows.CP_UTF8 0 wptr (wsize as i32) null 0 null null
 
@@ -82,9 +82,9 @@ fn... split-path (path : WideStringView)
         lslice lhs-path ('buffer-length lhs-path)
         lslice rhs-path ('buffer-length rhs-path)
 
-print (winstr->UTF-8 (winstr S"ẝ𝓸ĺ𝑑è𝖗"))
-path := winstr S"./blah/bluh"
-print (va-map winstr->UTF-8 (split-path path))
+print (WideString->UTF-8 (UTF-8->WideString S"ẝ𝓸ĺ𝑑è𝖗"))
+path := UTF-8->WideString S"./blah/bluh"
+print (va-map WideString->UTF-8 (split-path path))
 
 struct FileWatcher
     fn... watch (self, path : String, callback : FileWatchCallback)
