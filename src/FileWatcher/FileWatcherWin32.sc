@@ -7,6 +7,14 @@ using import .headers
 using import .common
 
 typedef widechar <<: u16
+inline stackbuffer (T size)
+    Buffer.wrap (alloca-array T size) size (inline ())
+
+WideString := (HeapBuffer widechar)
+WideStringView := (SliceView (mutable@ widechar))
+widestring := (size) -> (heapbuffer widechar size)
+widestring-stack := (size) -> (stackbuffer widechar size)
+
 type+ (mutable@ widechar)
     inline __rimply (otherT thisT)
         static-if (otherT < pointer 
@@ -20,34 +28,15 @@ type+ (mutable@ widechar)
             inline (self) 
                 self as otherT
 
-inline stackbuffer (T size)
-    Buffer.wrap (alloca-array T size) size (inline ())
+type+ WideString
+    inline... length (buf : (mutable@ widechar))
+        (windows.wcslen buf) + 1
+    case (wstr : WideStringView)
+        this-function ('data wstr) ()
 
-WideString := (HeapBuffer widechar)
-widestring := (len) -> (heapbuffer widechar len)
-widestring-stack := (len) -> (stackbuffer widechar len)
-
-typedef WideStringView
-
-inline... zero-terminated-lengthW (buf : (mutable@ widechar))
-    (windows.wcslen buf) + 1
-case (wstr : WideStringView)
-    this-function ('data wstr) ()
-    
 type+ WideStringView
-    inline __typematch (cls T)
-        T.ElementType == widechar
-    
-    inline __rimply (cls T)
-        inline (self) 
-            static-if ((typeof self) == T)
-                self
-            else
-                lslice (view self) (countof self)
-
     inline from-widestring (cls wstr)
-        lslice (view wstr) (zero-terminated-lengthW wstr)
-
+        lslice (view wstr) ('length wstr)
 
 fn winstr (str)
     ptr size := 'data str
@@ -72,7 +61,8 @@ fn... winstr->UTF-8 (widestr : WideStringView)
 
 fn... full-path (path : WideStringView)
     buf := windows._wfullpath null ('data path) windows.MAX_PATH
-    WideString buf (zero-terminated-lengthW buf)
+    # TODO: raise if buf is null
+    WideString buf (WideString.length buf)
 
 fn... split-path (path : WideStringView)
     path := full-path path
@@ -98,8 +88,8 @@ fn... split-path (path : WideStringView)
     windows._wmakepath_s rhs-path-ptr rhs-path-size null null ('data file) ('data ext) ()
     
     _ 
-        lslice lhs-path (zero-terminated-lengthW lhs-path)
-        lslice rhs-path (zero-terminated-lengthW rhs-path)
+        lslice lhs-path ('length lhs-path)
+        lslice rhs-path ('length rhs-path)
 
 print (winstr->UTF-8 (winstr S"ẝ𝓸ĺ𝑑è𝖗"))
 path := winstr S"./blah/bluh"
