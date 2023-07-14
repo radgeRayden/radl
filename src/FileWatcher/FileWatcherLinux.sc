@@ -1,5 +1,4 @@
 using import Array
-using import enum
 using import hash
 using import Map
 using import Rc
@@ -9,17 +8,7 @@ import C.errno
 
 using import ..ext
 using import .headers
-
-enum FileEventType plain
-    Modified
-    Deleted
-    Created
-
-enum FileWatchError plain
-    NotFound
-    AccessDenied
-    NotAFile
-    NotWatching
+using import .common
 
 type WatchDescriptor < (opaque "InotifyWatchDescriptor") :: i32
     inline __rimply (otherT thisT)
@@ -48,8 +37,6 @@ struct WatchedFile
         static-if (thisT == otherT)
             inline (self other)
                 and (self.descriptor == other.descriptor) (self.name == other.name)
-
-FileWatchCallback := (@ (function void (viewof String 1) FileEventType))
 
 struct FileWatcher
     _handle : i32

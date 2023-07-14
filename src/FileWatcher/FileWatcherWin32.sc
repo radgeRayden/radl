@@ -4,6 +4,7 @@ using import Slice
 using import String
 using import struct
 using import .headers
+using import .common
 
 WideString := (typeof (heapbuffer u16 1))
 
@@ -82,7 +83,12 @@ fn... split-path (path : WideStringView)
 print (winstr->UTF-8 (winstr S"ẝ𝓸ĺ𝑑è𝖗"))
 path := winstr S"./blah/bluh"
 print (va-map winstr->UTF-8 (split-path path))
+
 struct FileWatcher
+    fn... watch (self, path : String, callback : FileWatchCallback)
+    fn... unwatch (self, path : String)
+    fn dispatch-events (self)
+    inline __drop (self)
 
 do
     let FileWatcher
