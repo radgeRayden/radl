@@ -9,22 +9,10 @@ import C.errno
 using import ..ext
 using import .headers
 using import .common
+import ..traits
 
-type WatchDescriptor < (opaque "InotifyWatchDescriptor") :: i32
-    inline __rimply (otherT thisT)
-        static-if (otherT == (storageof thisT))
-            inline (incoming)
-                bitcast incoming thisT
-
-    inline __imply (thisT otherT)
-        static-if (otherT == (storageof thisT))
-            inline (self)
-                bitcast self otherT
-
-    inline __== (thisT otherT)
-        static-if (thisT == otherT)
-            inline (self other)
-                (storagecast (view self)) == (storagecast (view other))
+typedef WatchDescriptor <<:: i32
+    using traits.coerces-to-storage
 
 struct WatchedFile
     descriptor : i32
