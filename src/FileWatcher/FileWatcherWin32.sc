@@ -29,6 +29,9 @@ typedef+ WideStringView
     inline from-widestring (cls wstr)
         lslice (view wstr) (zero-terminated-lengthW wstr)
 
+inline stackbuffer (T size)
+    Buffer.wrap (alloca-array T size) size ((...) -> ())
+
 fn winstr (str)
     ptr size := 'data str
     # NOTE: we add 1 to the size because 'data ignores the null terminator as of 2023/07/13
@@ -57,10 +60,10 @@ fn... full-path (path : WideStringView)
 fn... split-path (path : WideStringView)
     path := full-path path
 
-    drive := heapbuffer u16 windows.MAX_PATH
-    dir := heapbuffer u16 windows.MAX_PATH
-    file := heapbuffer u16 windows.MAX_PATH
-    ext := heapbuffer u16 windows.MAX_PATH
+    drive := stackbuffer u16 4
+    dir := stackbuffer u16 windows.MAX_PATH
+    file := stackbuffer u16 windows.MAX_PATH
+    ext := stackbuffer u16 windows.MAX_PATH
 
     drive-ptr drive-size := 'data drive
     dir-ptr dir-size     := 'data dir
