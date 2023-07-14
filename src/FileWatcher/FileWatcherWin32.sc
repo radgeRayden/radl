@@ -8,6 +8,13 @@ using import .headers
 WideString := (typeof (heapbuffer u16 1))
 
 typedef WideStringView
+
+inline... zero-terminated-lengthW (buf : (mutable@ u16))
+    (windows.wcslen buf) + 1
+case (wstr : WideStringView)
+    this-function ('data wstr) ()
+    
+typedef+ WideStringView
     inline __typematch (cls T)
         T.ElementType == u16
     
@@ -19,8 +26,8 @@ typedef WideStringView
                 lslice (view self) (countof self)
 
     inline from-widestring (cls wstr)
-        lslice (view wstr) ((windows.wcslen ('data wstr) ()) + 1)
-    
+        lslice (view wstr) (zero-terminated-lengthW wstr)
+
 fn winstr (str)
     ptr size := 'data str
     # NOTE: we add 1 to the size because 'data ignores the null terminator as of 2023/07/13
@@ -44,7 +51,7 @@ fn... winstr->UTF-8 (widestr : WideStringView)
 
 fn... full-path (path : WideStringView)
     buf := windows._wfullpath null ('data path) windows.MAX_PATH
-    WideString buf ((windows.wcslen buf) + 1)
+    WideString buf (zero-terminated-lengthW buf)
 
 fn... split-path (path : WideStringView)
     path := full-path path
@@ -54,10 +61,10 @@ fn... split-path (path : WideStringView)
     file := heapbuffer u16 windows.MAX_PATH
     ext := heapbuffer u16 windows.MAX_PATH
 
-    drive-ptr drive-size   := 'data drive
-    dir-ptr dir-size       := 'data dir
-    file-ptr file-size := 'data file
-    ext-ptr ext-size       := 'data ext
+    drive-ptr drive-size := 'data drive
+    dir-ptr dir-size     := 'data dir
+    file-ptr file-size   := 'data file
+    ext-ptr ext-size     := 'data ext
     windows._wsplitpath_s ('data path) \
         drive-ptr drive-size dir-ptr dir-size file-ptr file-size ext-ptr ext-size
     
@@ -68,7 +75,9 @@ fn... split-path (path : WideStringView)
     rhs-path-ptr rhs-path-size := 'data rhs-path
     windows._wmakepath_s rhs-path-ptr rhs-path-size null null ('data file) ('data ext) ()
     
-    _ lhs-path rhs-path
+    _ 
+        lslice lhs-path (zero-terminated-lengthW lhs-path)
+        lslice rhs-path (zero-terminated-lengthW rhs-path)
 
 print (winstr->UTF-8 (winstr S"ẝ𝓸ĺ𝑑è𝖗"))
 path := winstr S"./blah/bluh"
