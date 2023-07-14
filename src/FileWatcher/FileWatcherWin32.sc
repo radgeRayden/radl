@@ -20,14 +20,14 @@ type+ (mutable@ widechar)
     using traits.element-coerces-to-storage
 
 type+ WideString
-    inline... length (buf : (mutable@ widechar))
+    inline... buffer-length (buf : (mutable@ widechar))
         (windows.wcslen buf) + 1
     case (wstr : WideStringView)
         this-function ('data wstr) ()
 
 type+ WideStringView
     inline from-widestring (cls wstr)
-        lslice (view wstr) ('length wstr)
+        lslice (view wstr) ('buffer-length wstr)
 
 fn winstr (str)
     ptr size := 'data str
@@ -53,7 +53,7 @@ fn... winstr->UTF-8 (widestr : WideStringView)
 fn... full-path (path : WideStringView)
     buf := windows._wfullpath null ('data path) windows.MAX_PATH
     # TODO: raise if buf is null
-    WideString buf (WideString.length buf)
+    WideString buf (WideString.buffer-length buf)
 
 fn... split-path (path : WideStringView)
     path := full-path path
@@ -79,8 +79,8 @@ fn... split-path (path : WideStringView)
     windows._wmakepath_s rhs-path-ptr rhs-path-size null null ('data file) ('data ext) ()
     
     _ 
-        lslice lhs-path ('length lhs-path)
-        lslice rhs-path ('length rhs-path)
+        lslice lhs-path ('buffer-length lhs-path)
+        lslice rhs-path ('buffer-length rhs-path)
 
 print (winstr->UTF-8 (winstr S"ẝ𝓸ĺ𝑑è𝖗"))
 path := winstr S"./blah/bluh"
