@@ -7,10 +7,10 @@ using import .headers
 using import .common
 import ..traits
 
-typedef widechar <<: u16
 inline stackbuffer (T size)
     Buffer.wrap (alloca-array T size) size (inline ())
 
+typedef widechar <<: u16
 WideString := (HeapBuffer widechar)
 WideStringView := (SliceView (mutable@ widechar))
 widestring := (size) -> (heapbuffer widechar size)
