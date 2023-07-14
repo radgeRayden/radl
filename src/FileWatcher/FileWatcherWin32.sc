@@ -5,6 +5,7 @@ using import String
 using import struct
 using import .headers
 using import .common
+import ..traits
 
 typedef widechar <<: u16
 inline stackbuffer (T size)
@@ -16,17 +17,7 @@ widestring := (size) -> (heapbuffer widechar size)
 widestring-stack := (size) -> (stackbuffer widechar size)
 
 type+ (mutable@ widechar)
-    inline __rimply (otherT thisT)
-        static-if (otherT < pointer 
-                    and ((elementof otherT) == (storageof (elementof thisT))))
-            inline (incoming) 
-                incoming as thisT
-
-    inline __imply (thisT otherT)
-        static-if (otherT < pointer 
-                    and ((elementof otherT) == (storageof (elementof thisT))))
-            inline (self) 
-                self as otherT
+    using traits.element-coerces-to-storage
 
 type+ WideString
     inline... length (buf : (mutable@ widechar))
