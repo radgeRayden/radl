@@ -6,18 +6,37 @@ using import struct
 using import .headers
 using import .common
 
-WideString := (typeof (heapbuffer u16 1))
+typedef widechar <<: u16
+type+ (mutable@ widechar)
+    inline __rimply (otherT thisT)
+        static-if (otherT < pointer 
+                    and ((elementof otherT) == (storageof (elementof thisT))))
+            inline (incoming) 
+                incoming as thisT
+
+    inline __imply (thisT otherT)
+        static-if (otherT < pointer 
+                    and ((elementof otherT) == (storageof (elementof thisT))))
+            inline (self) 
+                self as otherT
+
+inline stackbuffer (T size)
+    Buffer.wrap (alloca-array T size) size (inline ())
+
+WideString := (HeapBuffer widechar)
+widestring := (len) -> (heapbuffer widechar len)
+widestring-stack := (len) -> (stackbuffer widechar len)
 
 typedef WideStringView
 
-inline... zero-terminated-lengthW (buf : (mutable@ u16))
+inline... zero-terminated-lengthW (buf : (mutable@ widechar))
     (windows.wcslen buf) + 1
 case (wstr : WideStringView)
     this-function ('data wstr) ()
     
-typedef+ WideStringView
+type+ WideStringView
     inline __typematch (cls T)
-        T.ElementType == u16
+        T.ElementType == widechar
     
     inline __rimply (cls T)
         inline (self) 
@@ -29,8 +48,6 @@ typedef+ WideStringView
     inline from-widestring (cls wstr)
         lslice (view wstr) (zero-terminated-lengthW wstr)
 
-inline stackbuffer (T size)
-    Buffer.wrap (alloca-array T size) size ((...) -> ())
 
 fn winstr (str)
     ptr size := 'data str
@@ -38,7 +55,7 @@ fn winstr (str)
     size := size + 1
     len := windows.MultiByteToWideChar windows.CP_UTF8 0 ptr (size as i32) null 0
 
-    result := heapbuffer u16 len
+    result := widestring len
     written := 
         windows.MultiByteToWideChar windows.CP_UTF8 0 ptr (size as i32) ('data result) len
     assert (len == written)
@@ -72,10 +89,11 @@ fn... split-path (path : WideStringView)
     windows._wsplitpath_s ('data path) \
         drive-ptr drive-size dir-ptr dir-size file-ptr file-size ext-ptr ext-size
     
-    lhs-path := heapbuffer u16 windows.MAX_PATH
+    lhs-path := widestring windows.MAX_PATH
     lhs-path-ptr lhs-path-size := 'data lhs-path
     windows._wmakepath_s lhs-path-ptr lhs-path-size ('data drive) ('data dir) null null
-    rhs-path := heapbuffer u16 windows.MAX_PATH
+
+    rhs-path := widestring windows.MAX_PATH
     rhs-path-ptr rhs-path-size := 'data rhs-path
     windows._wmakepath_s rhs-path-ptr rhs-path-size null null ('data file) ('data ext) ()
     
