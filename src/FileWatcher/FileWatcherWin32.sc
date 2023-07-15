@@ -1,5 +1,7 @@
 using import Array
 using import Buffer
+using import Map
+using import Rc
 using import Slice
 using import String
 using import struct
@@ -11,8 +13,16 @@ inline stackbuffer (T size)
     Buffer.wrap (alloca-array T size) size (inline ())
 
 typedef widechar <<: u16
+
+typedef WatchHandle <<:: windows.HANDLE
+    using traits.element-coerces-to-storage
+    inline __drop (self)
+        windows.CloseHandle self
+        ()
+
 WideString := (HeapBuffer widechar)
 WideStringView := (SliceView (mutable@ widechar))
+
 widestring := (size) -> (heapbuffer widechar size)
 widestring-stack := (size) -> (stackbuffer widechar size)
 
@@ -25,7 +35,17 @@ type+ WideString
     case (wstr : WideStringView)
         this-function ('data wstr) ()
 
+    inline empty-string? (self)
+        or
+            (countof self) == 0
+            (('data self) @ 0) == 0
+
+inline chained-mixin (types...)
+    static-eval (.. (va-map mixin types...))
+
 type+ WideStringView
+    using (chained-mixin this-type WideString)
+
     inline from-widestring (cls wstr)
         lslice (view wstr) ('buffer-length wstr)
 
@@ -56,8 +76,6 @@ fn... full-path (path : WideStringView)
     WideString buf (WideString.buffer-length buf)
 
 fn... split-path (path : WideStringView)
-    path := full-path path
-
     drive := stackbuffer u16 4
     dir := stackbuffer u16 windows.MAX_PATH
     file := stackbuffer u16 windows.MAX_PATH
@@ -82,12 +100,36 @@ fn... split-path (path : WideStringView)
         lslice lhs-path ('buffer-length lhs-path)
         lslice rhs-path ('buffer-length rhs-path)
 
-print (WideString->UTF-8 (UTF-8->WideString S"ẝ𝓸ĺ𝑑è𝖗"))
-path := UTF-8->WideString S"./blah/bluh"
-print (va-map WideString->UTF-8 (split-path path))
-
 struct FileWatcher
+    watch-handles : (Map WideString (Rc WatchHandle))
+
     fn... watch (self, path : String, callback : FileWatchCallback)
+        pathW := UTF-8->WideString path
+        dir file := split-path pathW
+        if ('empty-string? file)
+            raise FileWatchError.NotAFile
+
+        if (not (windows.PathFileExistsW ('data pathW) ()))
+            raise FileWatchError.NotFound
+
+        attrs := windows.GetFileAttributesW ('data pathW) ()
+        if (attrs & windows.FILE_ATTRIBUTE_DIRECTORY)
+            raise FileWatchError.NotAFile
+
+        if ('in? self.watch-handles dir)
+            return;
+
+        dirhandle :=
+            windows.CreateFileW ('data dir) 0x80000000 # GENERIC_READ
+                | windows.FILE_SHARE_READ windows.FILE_SHARE_WRITE windows.FILE_SHARE_DELETE
+                null
+                windows.OPEN_EXISTING
+                windows.FILE_FLAG_BACKUP_SEMANTICS
+                null
+        if (dirhandle == windows.INVALID_HANDLE_VALUE) 
+            raise FileWatchError.AccessDenied
+
+        'set self.watch-handles dir dirhandle
     fn... unwatch (self, path : String)
     fn dispatch-events (self)
     inline __drop (self)

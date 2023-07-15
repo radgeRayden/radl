@@ -31,5 +31,14 @@ elseif windows?
             header := include "windows.h"
             shlwapi := include "shlwapi.h"
             pathcch := include "pathcch.h"
-            .. header.extern header.define header.typedef shlwapi.extern pathcch.extern
+            # winnt := include "winnt.h"
+            handleapi :=
+                include 
+                    """"#include <handleapi.h>
+                        typeof(INVALID_HANDLE_VALUE) __scopes_INVALID_HANDLE_VALUE () {
+                            return INVALID_HANDLE_VALUE;
+                        }
+            'bind-symbols
+                .. header.extern header.define header.typedef shlwapi.extern pathcch.extern
+                INVALID_HANDLE_VALUE = (handleapi.extern.__scopes_INVALID_HANDLE_VALUE)
     local-scope;
