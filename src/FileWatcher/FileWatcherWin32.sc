@@ -9,10 +9,16 @@ using import .headers
 using import .common
 import ..traits
 
-inline stackbuffer (T size)
-    Buffer.wrap (alloca-array T size) size (inline ())
-
 typedef widechar <<: u16
+
+StackWideCharPointer := 
+    static-eval
+        'change-storage-class ('mutable (pointer.type widechar)) 'Function
+
+type+ (mutable@ widechar)
+    using traits.element-coerces-to-storage
+type+ StackWideCharPointer
+    using traits.element-coerces-to-storage
 
 typedef WatchHandle <<:: windows.HANDLE
     using traits.element-coerces-to-storage
@@ -22,12 +28,10 @@ typedef WatchHandle <<:: windows.HANDLE
 
 WideString := (HeapBuffer widechar)
 WideStringView := (SliceView (mutable@ widechar))
+WideStringStack := (Buffer StackWideCharPointer (inline ()))
 
 widestring := (size) -> (heapbuffer widechar size)
-widestring-stack := (size) -> (stackbuffer widechar size)
-
-type+ (mutable@ widechar)
-    using traits.element-coerces-to-storage
+widestring-stack := (size) -> (WideStringStack (alloca-array widechar size) size)
 
 type+ WideString
     inline... buffer-length (buf : (mutable@ widechar))
@@ -40,8 +44,18 @@ type+ WideString
             (countof self) == 0
             (('data self) @ 0) == 0
 
+    inline __imply (thisT otherT)
+        static-if (otherT < pointer and (elementof otherT) == (storageof thisT.ElementType))
+            inline (self)
+                ('data self) as otherT
+        else
+            super-type.__imply thisT otherT
+
 inline chained-mixin (types...)
     static-eval (.. (va-map mixin types...))
+
+type+ WideStringStack
+    using (chained-mixin this-type WideString)
 
 type+ WideStringView
     using (chained-mixin this-type WideString)
@@ -57,7 +71,7 @@ fn UTF-8->WideString (str)
 
     result := widestring len
     written := 
-        windows.MultiByteToWideChar windows.CP_UTF8 0 ptr (size as i32) ('data result) len
+        windows.MultiByteToWideChar windows.CP_UTF8 0 ptr (size as i32) result len
     assert (len == written)
     result
 
@@ -71,30 +85,30 @@ fn... WideString->UTF-8 (widestr : WideStringView)
     'from-rawstring String ('data i8buf)
 
 fn... full-path (path : WideStringView)
-    buf := windows._wfullpath null ('data path) windows.MAX_PATH
+    buf := windows._wfullpath null path windows.MAX_PATH
     # TODO: raise if buf is null
     WideString buf (WideString.buffer-length buf)
 
 fn... split-path (path : WideStringView)
-    drive := stackbuffer u16 4
-    dir := stackbuffer u16 windows.MAX_PATH
-    file := stackbuffer u16 windows.MAX_PATH
-    ext := stackbuffer u16 windows.MAX_PATH
+    drive := widestring-stack 4
+    dir := widestring-stack windows.MAX_PATH
+    file := widestring-stack windows.MAX_PATH
+    ext := widestring-stack windows.MAX_PATH
 
     drive-ptr drive-size := 'data drive
     dir-ptr dir-size     := 'data dir
     file-ptr file-size   := 'data file
     ext-ptr ext-size     := 'data ext
-    windows._wsplitpath_s ('data path) \
+    windows._wsplitpath_s path \
         drive-ptr drive-size dir-ptr dir-size file-ptr file-size ext-ptr ext-size
     
     lhs-path := widestring windows.MAX_PATH
     lhs-path-ptr lhs-path-size := 'data lhs-path
-    windows._wmakepath_s lhs-path-ptr lhs-path-size ('data drive) ('data dir) null null
+    windows._wmakepath_s lhs-path-ptr lhs-path-size drive dir null null
 
     rhs-path := widestring windows.MAX_PATH
     rhs-path-ptr rhs-path-size := 'data rhs-path
-    windows._wmakepath_s rhs-path-ptr rhs-path-size null null ('data file) ('data ext) ()
+    windows._wmakepath_s rhs-path-ptr rhs-path-size null null file ext
     
     _ 
         lslice lhs-path ('buffer-length lhs-path)
@@ -109,10 +123,10 @@ struct FileWatcher
         if ('empty-string? file)
             raise FileWatchError.NotAFile
 
-        if (not (windows.PathFileExistsW ('data pathW) ()))
+        if (not (windows.PathFileExistsW pathW))
             raise FileWatchError.NotFound
 
-        attrs := windows.GetFileAttributesW ('data pathW) ()
+        attrs := windows.GetFileAttributesW pathW
         if (attrs & windows.FILE_ATTRIBUTE_DIRECTORY)
             raise FileWatchError.NotAFile
 
@@ -120,7 +134,7 @@ struct FileWatcher
             return;
 
         dirhandle :=
-            windows.CreateFileW ('data dir) 0x80000000 # GENERIC_READ
+            windows.CreateFileW dir 0x80000000 # GENERIC_READ
                 | windows.FILE_SHARE_READ windows.FILE_SHARE_WRITE windows.FILE_SHARE_DELETE
                 null
                 windows.OPEN_EXISTING
