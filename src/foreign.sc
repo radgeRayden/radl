@@ -19,6 +19,7 @@
 
 # using import .core-extensions
 using import .strfmt
+using import slice
 using import String
 
 let constant-wrapper-prefix = "scopes_constant_wrapper__"

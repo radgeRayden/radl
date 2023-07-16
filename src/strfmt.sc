@@ -3,6 +3,8 @@ using import String
 using import Array
 using import struct
 
+using import slice
+
 enum TemplateChunk
     Text : String
     Code : String

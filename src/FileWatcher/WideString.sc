@@ -1,3 +1,7 @@
+using import Buffer
+using import slice
+using import String
+using import .headers
 import ..traits
 
 do
@@ -12,7 +16,7 @@ do
         using traits.element-coerces-to-storage
 
     WideString := (HeapBuffer widechar)
-    WideStringView := (SliceView (mutable@ widechar))
+    WideStringView := (Slice (mutable@ widechar))
     WideStringStack := (Buffer StackWideCharPointer (inline ()))
     widestring := (size) -> (heapbuffer widechar size)
     widestring-stack := (size) -> (WideStringStack (alloca-array widechar size) size)
