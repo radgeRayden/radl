@@ -75,8 +75,7 @@ struct FileWatcher
         ()
 
     fn... unwatch (self, path : String)
-        local path = copy path
-        dir file := 'from-rawstring String (libgen.dirname path), 'from-rawstring String (libgen.basename path)
+        dir file := 'from-rawstring String (libgen.dirname (copy path)), 'from-rawstring String (libgen.basename path)
         if (file == "")
             return;
 
