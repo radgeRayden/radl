@@ -1,0 +1,71 @@
+import ..traits
+
+do
+    typedef widechar <<: u16
+    type+ (mutable@ widechar)
+        using traits.element-coerces-to-storage
+
+    StackWideCharPointer := 
+        static-eval
+            'change-storage-class ('mutable (pointer.type widechar)) 'Function
+    type+ StackWideCharPointer
+        using traits.element-coerces-to-storage
+
+    WideString := (HeapBuffer widechar)
+    WideStringView := (SliceView (mutable@ widechar))
+    WideStringStack := (Buffer StackWideCharPointer (inline ()))
+    widestring := (size) -> (heapbuffer widechar size)
+    widestring-stack := (size) -> (WideStringStack (alloca-array widechar size) size)
+
+    type IWideString
+        inline... string-length (buf : (mutable@ widechar))
+            (windows.wcslen buf) + 1
+        case (wstr : WideStringView)
+            this-function ('data wstr) ()
+
+        inline empty-string? (self)
+            or
+                (countof self) == 0
+                (('data self) @ 0) == 0
+
+        inline __imply (thisT otherT)
+            static-if (otherT < pointer and (elementof otherT) == (storageof thisT.ElementType))
+                inline (self)
+                    ('data self) as otherT
+            else
+                super-type.__imply thisT otherT
+
+    type+ WideString
+        using (mixin IWideString)
+
+    type+ WideStringStack
+        using (mixin IWideString)
+
+    type+ WideStringView
+        using (mixin IWideString)
+
+        inline from-widestring (cls wstr)
+            lslice (view wstr) ('string-length wstr)
+
+    fn UTF-8->WideString (str)
+        ptr size := 'data str
+        # NOTE: we add 1 to the size because 'data ignores the null terminator as of 2023/07/13
+        size := size + 1
+        len := windows.MultiByteToWideChar windows.CP_UTF8 0 ptr (size as i32) null 0
+
+        result := widestring len
+        written := 
+            windows.MultiByteToWideChar windows.CP_UTF8 0 ptr (size as i32) result len
+        assert (len == written)
+        result
+
+    fn... WideString->UTF-8 (widestr : WideStringView)
+        wptr wsize := 'data widestr
+        len := windows.WideCharToMultiByte windows.CP_UTF8 0 wptr (wsize as i32) null 0 null null
+
+        i8buf := heapbuffer i8 len
+        written := windows.WideCharToMultiByte windows.CP_UTF8 0 wptr (wsize as i32) ('data i8buf) len null null
+        assert (len == written)
+        'from-rawstring String ('data i8buf)
+
+    local-scope;
