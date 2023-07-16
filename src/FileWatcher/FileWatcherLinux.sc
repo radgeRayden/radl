@@ -67,9 +67,11 @@ struct FileWatcher
                         assert false f"Unhandled error while trying to watch file: ${path}"
                 Rc.wrap (imply wd WatchDescriptor)
 
-        cb-key := WatchedFile (view (imply wd WatchDescriptor)) (copy path)
-        'set self.file-callbacks cb-key callback
-        'set self.watched-dirs (view (imply wd WatchDescriptor)) (copy dir)
+        'set self.file-callbacks
+            WatchedFile (imply wd WatchDescriptor) (copy path)
+            callback
+        'set self.watch-descriptors (copy dir) (copy wd)
+        'set self.watched-dirs (imply wd WatchDescriptor) (copy dir)
         ()
 
     fn... unwatch (self, path : String)

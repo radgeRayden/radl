@@ -29,7 +29,7 @@ do
         inline __imply (thisT otherT)
             static-if (otherT == (storageof thisT))
                 inline (self)
-                    bitcast self otherT
+                    bitcast (dupe self) otherT
 
         inline __== (thisT otherT)
             static-if (imply? thisT otherT)
