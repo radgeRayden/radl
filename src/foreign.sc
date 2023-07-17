@@ -55,7 +55,11 @@ sugar foreign (body...)
             local includestr : String
             for header in headers...
                 header as:= string
-                includestr ..= (interpolate "#include \"${0}\"\n" header)
+                # multiline string is interpreted as inline code
+                if (header @ ((countof header) - 1) == char"\n")
+                    includestr ..= header
+                else
+                    includestr ..= (interpolate "#include \"${0}\"\n" header)
             _ next (String includestr) namespaces constants extra-symbols
         case ('with-constants (curly-list constants...))
             local c-code = c-code
