@@ -80,6 +80,7 @@ type+ WideStringView
 
 fn UTF-8->WideString (str)
     ptr size := 'data str
+    size := size + 1
     len := windows.MultiByteToWideChar windows.CP_UTF8 0 ptr (size as i32) null 0
 
     result := widestring len
