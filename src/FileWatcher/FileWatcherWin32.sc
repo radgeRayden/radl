@@ -151,8 +151,7 @@ struct FileWatcher
                             FileEventType.Deleted
                         case windows.FILE_ACTION_MODIFIED
                             FileEventType.Modified
-                        default
-                            FileEventType.Modified
+                        default (merge dispatch-callback)
 
                     cb (WideString->UTF-8 path) event-type
                 else ()
