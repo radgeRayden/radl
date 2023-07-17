@@ -54,6 +54,7 @@ struct WatchedDirectory
     handle : WatchHandle
     overlapped : windows.OVERLAPPED
     path : WideStringView
+    # NOTE: we map callbacks by filename (without directory)
     files : (Map WideStringView FileWatchCallback)
     notification-buffer : WideString
 
@@ -139,8 +140,8 @@ struct FileWatcher
                     file := stringbuffer widechar filename-size
                     buffercopy file (viewbuffer (&event.FileName as (mutable@ widechar)) filename-size)
                     dir := wd.path
+                    cb := 'get wd.files file
                     path := 'join WideString dir file
-                    cb := 'get wd.files path
 
                     let event-type =
                         switch event.Action
