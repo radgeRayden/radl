@@ -20,6 +20,25 @@ WideStringStack := (Buffer StackWideCharPointer (inline ()))
 widestring := (size) -> (heapbuffer widechar size)
 widestring-stack := (size) -> (WideStringStack (alloca-array widechar size) size)
 
+fn... UTF-8->WideString (str : String)
+    ptr size := 'data str
+    len := windows.MultiByteToWideChar windows.CP_UTF8 0 ptr (size as i32) null 0
+
+    result := stringbuffer widechar len
+    written := 
+        windows.MultiByteToWideChar windows.CP_UTF8 0 ptr (size as i32) result len
+    assert (len == written)
+    result
+
+fn... WideString->UTF-8 (widestr : WideStringView)
+    wptr wsize := 'data widestr
+    len := windows.WideCharToMultiByte windows.CP_UTF8 0 wptr (wsize as i32) null 0 null null
+
+    i8buf := stringbuffer i8 (('zero-terminated? widestr) (len - 1) len)
+    written := windows.WideCharToMultiByte windows.CP_UTF8 0 wptr (wsize as i32) ('data i8buf) len null null
+    assert (len == written)
+    'from-rawstring String ('data i8buf)
+
 inline WideString+ (T)
     type+ T
         inline... string-length (buf : (mutable@ widechar))
@@ -80,6 +99,9 @@ inline WideString+ (T)
             buffercopy (rslice (view result) (countof a)) b
             result
 
+        inline __printer (self print)
+            print (WideString->UTF-8 (view self))
+
 va-map WideString+
     _ WideString WideStringView WideStringStack
 
@@ -92,25 +114,6 @@ type+ WideString
 type+ WideStringView
     inline from-widestring (cls wstr)
         lslice (view wstr) ('string-length wstr)
-
-fn... UTF-8->WideString (str : String)
-    ptr size := 'data str
-    len := windows.MultiByteToWideChar windows.CP_UTF8 0 ptr (size as i32) null 0
-
-    result := stringbuffer widechar len
-    written := 
-        windows.MultiByteToWideChar windows.CP_UTF8 0 ptr (size as i32) result len
-    assert (len == written)
-    result
-
-fn... WideString->UTF-8 (widestr : WideStringView)
-    wptr wsize := 'data widestr
-    len := windows.WideCharToMultiByte windows.CP_UTF8 0 wptr (wsize as i32) null 0 null null
-
-    i8buf := stringbuffer i8 (('zero-terminated? widestr) (len - 1) len)
-    written := windows.WideCharToMultiByte windows.CP_UTF8 0 wptr (wsize as i32) ('data i8buf) len null null
-    assert (len == written)
-    'from-rawstring String ('data i8buf)
 
 do
     let UTF-8->WideString

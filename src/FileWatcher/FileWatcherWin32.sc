@@ -71,7 +71,6 @@ struct FileWatcher
     fn... watch (self, path : String, callback : FileWatchCallback)
         pathW := UTF-8->WideString path
         dir file := split-path (full-path (view pathW))
-        print dir file
         if ('empty-string? file)
             raise FileWatchError.NotAFile
 
