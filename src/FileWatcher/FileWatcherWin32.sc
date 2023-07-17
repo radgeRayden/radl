@@ -56,8 +56,8 @@ fn... split-path (path : WideStringView)
     windows._wmakepath_s rhs-path-ptr rhs-path-size null null file ext
     
     _ 
-        'from-widestring WideString lhs-path
-        'from-widestring WideString rhs-path
+        lslice lhs-path ('strlen lhs-path)
+        lslice rhs-path ('strlen rhs-path)
 
 struct FileWatcher
     watch-handles : (Map WideString (Rc WatchHandle))

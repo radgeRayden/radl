@@ -27,10 +27,19 @@ inline WideString+ (T)
         case (wstr : WideStringView)
             this-function ('data wstr) ()
 
+        inline strlen (self)
+            windows.wcslen self
+
         inline empty-string? (self)
             or
                 (countof self) == 0
                 (('data self) @ 0) == 0
+
+        inline zero-terminated? (self)
+            last-idx := (countof self) - 1
+            and
+                (countof self) > 0
+                (self @ last-idx) == 0
 
         inline __imply (thisT otherT)
             let ET =
@@ -60,6 +69,17 @@ inline WideString+ (T)
             else
                 super-type.__rimply otherT thisT
 
+        inline __copy (self)
+            result := widestring (countof self)
+            buffercopy result (view self)
+            result
+
+        inline join (cls a b)
+            result := stringbuffer widechar ((countof a) + (countof b))
+            buffercopy result a
+            buffercopy (rslice (view result) (countof a)) b
+            result
+
 va-map WideString+
     _ WideString WideStringView WideStringStack
 
@@ -73,12 +93,11 @@ type+ WideStringView
     inline from-widestring (cls wstr)
         lslice (view wstr) ('string-length wstr)
 
-fn UTF-8->WideString (str)
+fn... UTF-8->WideString (str : String)
     ptr size := 'data str
-    size := size + 1
     len := windows.MultiByteToWideChar windows.CP_UTF8 0 ptr (size as i32) null 0
 
-    result := widestring len
+    result := stringbuffer widechar len
     written := 
         windows.MultiByteToWideChar windows.CP_UTF8 0 ptr (size as i32) result len
     assert (len == written)
@@ -88,7 +107,7 @@ fn... WideString->UTF-8 (widestr : WideStringView)
     wptr wsize := 'data widestr
     len := windows.WideCharToMultiByte windows.CP_UTF8 0 wptr (wsize as i32) null 0 null null
 
-    i8buf := heapbuffer i8 len
+    i8buf := stringbuffer i8 (('zero-terminated? widestr) (len - 1) len)
     written := windows.WideCharToMultiByte windows.CP_UTF8 0 wptr (wsize as i32) ('data i8buf) len null null
     assert (len == written)
     'from-rawstring String ('data i8buf)
