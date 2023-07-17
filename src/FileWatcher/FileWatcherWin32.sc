@@ -1,8 +1,9 @@
 using import Array
 using import Buffer
+using import hash
 using import Map
 using import Rc
-using import Slice
+using import slice
 using import String
 using import struct
 using import .common
@@ -15,6 +16,18 @@ typedef WatchHandle <<:: windows.HANDLE
     inline __drop (self)
         windows.CloseHandle self
         ()
+
+struct WatchedFile
+    handle : windows.HANDLE
+    name : WideString
+
+    inline __hash (self)
+        hash (hash self.handle) (hash self.name)
+
+    inline __== (thisT otherT)
+        static-if (thisT == otherT)
+            inline (self other)
+                and (self.handle == other.handle) (self.name == other.name)
 
 fn... full-path (path : WideStringView)
     buf := windows._wfullpath null path windows.MAX_PATH
@@ -43,15 +56,17 @@ fn... split-path (path : WideStringView)
     windows._wmakepath_s rhs-path-ptr rhs-path-size null null file ext
     
     _ 
-        lslice lhs-path ('string-length lhs-path)
-        lslice rhs-path ('string-length rhs-path)
+        'from-widestring WideString lhs-path
+        'from-widestring WideString rhs-path
 
 struct FileWatcher
     watch-handles : (Map WideString (Rc WatchHandle))
+    watched-dirs : (Map windows.HANDLE WideString)
+    file-callbacks : (Map WatchedFile FileWatchCallback)
 
     fn... watch (self, path : String, callback : FileWatchCallback)
         pathW := UTF-8->WideString path
-        dir file := split-path pathW
+        dir file := split-path (view pathW)
         if ('empty-string? file)
             raise FileWatchError.NotAFile
 
@@ -62,8 +77,29 @@ struct FileWatcher
         if (attrs & windows.FILE_ATTRIBUTE_DIRECTORY)
             raise FileWatchError.NotAFile
 
-        if ('in? self.watch-handles dir)
-            return;
+        let watch-handle =
+            try (copy ('get self.watch-handles dir))
+            else
+                dirhandle :=
+                    windows.CreateFileW dir 0x80000000 # GENERIC_READ
+                        | windows.FILE_SHARE_READ windows.FILE_SHARE_WRITE windows.FILE_SHARE_DELETE
+                        null
+                        windows.OPEN_EXISTING
+                        windows.FILE_FLAG_BACKUP_SEMANTICS
+                        null
+                if (dirhandle == windows.INVALID_HANDLE_VALUE) 
+                    raise FileWatchError.AccessDenied
+
+                watch-handle := Rc.wrap (imply dirhandle WatchHandle)
+                'set self.watch-handles (copy dir) (copy watch-handle)
+                watch-handle
+        
+        'set self.file-callbacks
+            WatchedFile (imply watch-handle WatchHandle) (copy pathW)
+            callback
+        'set self.watched-dirs (imply watch-handle WatchHandle) (copy dir)
+        ()
+        
 
         dirhandle :=
             windows.CreateFileW dir 0x80000000 # GENERIC_READ
