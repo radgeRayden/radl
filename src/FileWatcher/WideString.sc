@@ -20,7 +20,7 @@ WideStringStack := (Buffer StackWideCharPointer (inline ()))
 widestring := (size) -> (heapbuffer widechar size)
 widestring-stack := (size) -> (WideStringStack (alloca-array widechar size) size)
 
-type IsWideString < Buffer
+type IsWideString
     inline... string-length (buf : (mutable@ widechar))
         (windows.wcslen buf) + 1
     case (wstr : WideStringView)
