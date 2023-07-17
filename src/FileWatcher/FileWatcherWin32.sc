@@ -2,6 +2,7 @@ using import Array
 using import Buffer
 using import hash
 using import Map
+using import print
 using import Rc
 using import slice
 using import String
@@ -14,20 +15,10 @@ import ..traits
 typedef WatchHandle <<:: windows.HANDLE
     using traits.element-coerces-to-storage
     inline __drop (self)
-        windows.CloseHandle self
+        # FIXME: kind of a hack. Need to investigate pointer trait.
+        if ((storagecast (view self)) != null)
+            windows.CloseHandle self
         ()
-
-struct WatchedFile
-    handle : windows.HANDLE
-    name : WideString
-
-    inline __hash (self)
-        hash (hash self.handle) (hash self.name)
-
-    inline __== (thisT otherT)
-        static-if (thisT == otherT)
-            inline (self other)
-                and (self.handle == other.handle) (self.name == other.name)
 
 fn... full-path (path : WideStringView)
     buf := windows._wfullpath null path windows.MAX_PATH
@@ -59,20 +50,28 @@ fn... split-path (path : WideStringView)
         lslice lhs-path ('strlen lhs-path)
         lslice rhs-path ('strlen rhs-path)
 
-global woverlapped : windows.OVERLAPPED
-struct FileWatcher
-    watch-handles : (Map WideStringView (Rc WatchHandle))
-    watched-dirs : (Map windows.HANDLE WideStringView)
-    file-callbacks : (Map WatchedFile FileWatchCallback)
+struct WatchedDirectory
+    handle : WatchHandle
+    overlapped : windows.OVERLAPPED
+    path : WideStringView
+    files : (Map WideStringView FileWatchCallback)
     notification-buffer : WideString
 
-    inline __typecall (cls)
+    inline __typecall (cls path)
         super-type.__typecall cls
+            path = path
+            overlapped =
+                typeinit (hEvent = (windows.CreateEventW null false false null))
             notification-buffer = widestring (1024 * 64)
+
+struct FileWatcher
+    watched-directories : (Array WatchedDirectory)
+    directory-path-map  : (Map WideStringView usize)
 
     fn... watch (self, path : String, callback : FileWatchCallback)
         pathW := UTF-8->WideString path
-        dir file := split-path (view pathW)
+        dir file := split-path (full-path (view pathW))
+        print dir file
         if ('empty-string? file)
             raise FileWatchError.NotAFile
 
@@ -83,8 +82,10 @@ struct FileWatcher
         if (attrs & windows.FILE_ATTRIBUTE_DIRECTORY)
             raise FileWatchError.NotAFile
 
-        let watch-handle =
-            try (copy ('get self.watch-handles (view dir)))
+        let watched-directory =
+            try 
+                idx := 'get self.directory-path-map (view dir)
+                wd := self.watched-directories @ idx
             else
                 dirhandle :=
                     windows.CreateFileW dir 0x80000000 # GENERIC_READ
@@ -96,42 +97,38 @@ struct FileWatcher
                 if (dirhandle == windows.INVALID_HANDLE_VALUE) 
                     raise FileWatchError.AccessDenied
 
-                woverlapped.hEvent = windows.CreateEventW null false false null 
+                'set self.directory-path-map (copy dir) (countof self.watched-directories)
+                watched-directory :=
+                    'append self.watched-directories 
+                        WatchedDirectory (path = (copy dir))
+
                 local result : i32
-                bufptr bufsize := 'data self.notification-buffer
+                bufptr bufsize := 'data watched-directory.notification-buffer
                 result =
-                    windows.ReadDirectoryChangesW dirhandle bufptr (bufsize as u32) false 
+                    windows.ReadDirectoryChangesW (view dirhandle) bufptr (bufsize as u32) false 
                         |   windows.FILE_NOTIFY_CHANGE_FILE_NAME
                             windows.FILE_NOTIFY_CHANGE_LAST_WRITE    
                             windows.FILE_NOTIFY_CHANGE_SIZE
                         null
-                        &woverlapped
+                        &watched-directory.overlapped
                         null
-
-                watch-handle := Rc.wrap (imply dirhandle WatchHandle)
-                'set self.watch-handles (copy dir) (copy watch-handle)
-                watch-handle
+                watched-directory.handle = dirhandle
+                watched-directory
         
-        'set self.file-callbacks
-            WatchedFile (imply watch-handle WatchHandle) (copy pathW)
-            callback
-        'set self.watched-dirs (imply watch-handle WatchHandle) (copy dir)
-
+        'set watched-directory.files (copy file) callback
         ()
         
-    fn... unwatch (self, path : String)
-
     fn dispatch-events (self)
-        for __ dirhandle in self.watch-handles
-            notification-buffer := self.notification-buffer
+        for wd in self.watched-directories
+            notification-buffer := wd.notification-buffer
             bufptr bufsize := 'data notification-buffer
+
             local bytes-written : u32
-            
-            local result = windows.GetOverlappedResult dirhandle &woverlapped &bytes-written false
+            local result = windows.GetOverlappedResult wd.handle &wd.overlapped &bytes-written false
             if (not result)
                 assert ((windows.GetLastError) == windows.ERROR_IO_INCOMPLETE)
                 return;
-            
+
             loop (offset = 0:u32)
                 if (offset >= bytes-written)
                     break;
@@ -142,13 +139,9 @@ struct FileWatcher
                     filename-size := (copy event.FileNameLength) // 2
                     file := stringbuffer widechar filename-size
                     buffercopy file (viewbuffer (&event.FileName as (mutable@ widechar)) filename-size)
-                    dir := 'get self.watched-dirs dirhandle
-                    path := 
-                        'join WideString dir file
-
-                    cb :=
-                        'get self.file-callbacks
-                            WatchedFile (imply dirhandle WatchHandle) (copy path)
+                    dir := wd.path
+                    path := 'join WideString dir file
+                    cb := 'get wd.files path
 
                     let event-type =
                         switch event.Action
@@ -170,30 +163,28 @@ struct FileWatcher
 
                 offset + event.NextEntryOffset
 
+            # queue again.
             result =
-                windows.ReadDirectoryChangesW dirhandle bufptr (bufsize as u32) false 
+                windows.ReadDirectoryChangesW wd.handle bufptr (bufsize as u32) false 
                     |   windows.FILE_NOTIFY_CHANGE_FILE_NAME
                         windows.FILE_NOTIFY_CHANGE_LAST_WRITE    
                         windows.FILE_NOTIFY_CHANGE_SIZE
+                    &bytes-written
+                    &wd.overlapped
                     null
-                    &woverlapped
-                    null
-            print result
             ()
 
-    inline __drop (self)
-
-global fw : FileWatcher
-try
-    'watch fw (String (module-dir .. "\\test.txt"))
-        fn (...)
-            print ...
-except (ex) (print ex)
-
-while true
-    windows.Sleep 2500
-    print "dispatching"
-    'dispatch-events fw
+    fn... unwatch (self, path : String)
+        pathW := UTF-8->WideString path
+        dir file := split-path (full-path (view pathW))
+        try
+            idx := 'get self.directory-path-map dir
+            wd := self.watched-directories @ idx
+            'discard wd.files file
+            if ((countof wd.files) == 0)
+                wd = ('pop self.watched-directories)
+                'discard self.directory-path-map dir
+        else ()
 
 do
     let FileWatcher
