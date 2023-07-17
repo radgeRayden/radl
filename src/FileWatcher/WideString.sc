@@ -33,7 +33,7 @@ inline WideString+ (T)
                 (('data self) @ 0) == 0
 
         inline __imply (thisT otherT)
-            ET :=
+            let ET =
                 static-if (thisT.Type < Buffer)
                     thisT.Type.ElementType
                 else
@@ -47,7 +47,7 @@ inline WideString+ (T)
                 super-type.__imply thisT otherT
 
         inline __rimply (otherT thisT)
-            ET :=
+            let ET =
                 static-if (thisT.Type < Buffer)
                     thisT.Type.ElementType
                 else
