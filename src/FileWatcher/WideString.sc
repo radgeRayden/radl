@@ -20,61 +20,56 @@ WideStringStack := (Buffer StackWideCharPointer (inline ()))
 widestring := (size) -> (heapbuffer widechar size)
 widestring-stack := (size) -> (WideStringStack (alloca-array widechar size) size)
 
-type IsWideString
-    inline... string-length (buf : (mutable@ widechar))
-        (windows.wcslen buf) + 1
-    case (wstr : WideStringView)
-        this-function ('data wstr) ()
+inline WideString+ (T)
+    type+ T
+        inline... string-length (buf : (mutable@ widechar))
+            (windows.wcslen buf) + 1
+        case (wstr : WideStringView)
+            this-function ('data wstr) ()
 
-    inline empty-string? (self)
-        or
-            (countof self) == 0
-            (('data self) @ 0) == 0
+        inline empty-string? (self)
+            or
+                (countof self) == 0
+                (('data self) @ 0) == 0
 
-    inline __imply (thisT otherT)
-        ET :=
-            static-if (thisT.Type < Buffer)
-                thisT.Type.ElementType
+        inline __imply (thisT otherT)
+            ET :=
+                static-if (thisT.Type < Buffer)
+                    thisT.Type.ElementType
+                else
+                    thisT.ElementType
+
+            static-if (otherT < pointer 
+                        and ((elementof otherT) == (storageof ET)))
+                inline (self)
+                    ('data self) as otherT
             else
-                thisT.ElementType
+                super-type.__imply thisT otherT
 
-        static-if (otherT < pointer 
-                    and ((elementof otherT) == (storageof ET)))
-            inline (self)
-                ('data self) as otherT
-        else
-            super-type := (superof (unqualified thisT))
-            super-type.__imply thisT otherT
+        inline __rimply (otherT thisT)
+            ET :=
+                static-if (thisT.Type < Buffer)
+                    thisT.Type.ElementType
+                else
+                    thisT.ElementType
 
-    inline __rimply (otherT thisT)
-        ET :=
-            static-if (thisT.Type < Buffer)
-                thisT.Type.ElementType
+            static-if (otherT < pointer 
+                        and ((elementof otherT) == (storageof ET)))
+                inline (incoming)
+                    thisT incoming (string-length incoming)
             else
-                thisT.ElementType
+                super-type.__rimply otherT thisT
 
-        static-if (otherT < pointer 
-                    and ((elementof otherT) == (storageof ET)))
-            inline (incoming)
-                thisT incoming (string-length incoming)
-        else
-            super-type := (superof (unqualified thisT))
-            super-type.__rimply otherT thisT
+va-map WideString+
+    _ WideString WideStringView WideStringStack
 
 type+ WideString
-    using (mixin IsWideString)
-
     inline from-widestring (cls src)
         dst := widestring ('string-length (view src))
         buffercopy dst (view src)
         dst
 
-type+ WideStringStack
-    using (mixin IsWideString)
-
 type+ WideStringView
-    using (mixin IsWideString)
-
     inline from-widestring (cls wstr)
         lslice (view wstr) ('string-length wstr)
 
