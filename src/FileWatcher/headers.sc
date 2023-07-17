@@ -28,17 +28,20 @@ sugar-if linux?
 elseif windows?
     windows :=
         do
-            header := include "windows.h"
+            windows := include "windows.h"
             shlwapi := include "shlwapi.h"
             pathcch := include "pathcch.h"
-            # winnt := include "winnt.h"
+            winerror := 
+                foreign 
+                    include "windows.h" "winerror.h"
+                    with-constants {ERROR_SUCCESS ERROR_IO_INCOMPLETE}
             handleapi :=
-                include 
-                    """"#include <handleapi.h>
-                        typeof(INVALID_HANDLE_VALUE) __scopes_INVALID_HANDLE_VALUE () {
-                            return INVALID_HANDLE_VALUE;
-                        }
-            'bind-symbols
-                .. header.extern header.define header.typedef shlwapi.extern pathcch.extern
-                INVALID_HANDLE_VALUE = (handleapi.extern.__scopes_INVALID_HANDLE_VALUE)
+                foreign (include "handleapi.h")
+                    with-constants {INVALID_HANDLE_VALUE}
+            ntstatus :=
+                foreign 
+                    include "windows.h" "ntstatus.h"
+                    with-constants {STATUS_PENDING}
+            .. windows.extern windows.define windows.typedef shlwapi.extern pathcch.extern \
+                winerror handleapi ntstatus
     local-scope;
