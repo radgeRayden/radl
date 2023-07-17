@@ -11,7 +11,7 @@ do
             static-if (otherT < pointer 
                         and ((elementof otherT) == (storageof (elementof thisT))))
                 inline (self) 
-                    (copy self) as otherT
+                    (dupe self) as otherT
             else
                 super-type := (superof (unqualified thisT))
                 super-type.__imply thisT otherT
