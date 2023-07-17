@@ -117,19 +117,20 @@ sugar foreign (body...)
     module-sym := 'unique Symbol "scopes-module"
     qq
         [embed]
-        [let] [module-sym] =
-            [do]
-                [let] header =
-                    [include] [c-code]
-                [..]
-                    unquote-splice namespaces
-                    [filter-scope] (header . extern) [constant-wrapper-regexp]
-        [run-stage];
         [do]
-            [using] [module-sym]
-            unquote-splice constants
-            unquote-splice extra-symbols
-            [locals];
+            [let] [module-sym] =
+                [static-eval]
+                    [do]
+                        [let] header =
+                            [include] [c-code]
+                        [..]
+                            unquote-splice namespaces
+                            [filter-scope] (header . extern) [constant-wrapper-regexp]
+            [do]
+                [using] [module-sym]
+                unquote-splice constants
+                unquote-splice extra-symbols
+                [locals];
 
 do
     let filter-scope foreign
