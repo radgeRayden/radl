@@ -70,12 +70,13 @@ struct FileWatcher
         if ('empty-string? file)
             raise FileWatchError.NotAFile
 
-        if (not (windows.PathFileExistsW pathW))
+        if (not (windows.PathFileExistsW dir))
             raise FileWatchError.NotFound
 
-        attrs := windows.GetFileAttributesW pathW
-        if (attrs & windows.FILE_ATTRIBUTE_DIRECTORY)
-            raise FileWatchError.NotAFile
+        if (windows.PathFileExistsW pathW)
+            attrs := windows.GetFileAttributesW pathW
+            if (attrs & windows.FILE_ATTRIBUTE_DIRECTORY)
+                raise FileWatchError.NotAFile
 
         let watched-directory =
             try 
@@ -123,7 +124,7 @@ struct FileWatcher
             local result = windows.GetOverlappedResult wd.handle &wd.overlapped &bytes-written false
             if (not result)
                 assert ((windows.GetLastError) == windows.ERROR_IO_INCOMPLETE)
-                return;
+                return false
 
             loop (offset = 0:u32)
                 if (offset >= bytes-written)
