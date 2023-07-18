@@ -113,6 +113,7 @@ struct FileWatcher
             'discard self.watch-descriptors dir
 
     fn dispatch-events (self)
+        local any-events? : bool
         local buf : (array i8 4096)
         loop ()
             data-size := unistd.read self._handle &buf (sizeof buf)
@@ -150,11 +151,13 @@ struct FileWatcher
                             FileEventType.Modified
                         else (merge dispatch-callback)
 
+                    any-events? = true
                     cb path evtype
                 else ()
                 dispatch-callback ::
 
                 offset + (sizeof inotify.event) + event.len
+        any-events?
 
     inline __drop (self)
         unistd.close self._handle

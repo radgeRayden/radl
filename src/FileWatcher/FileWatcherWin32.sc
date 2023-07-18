@@ -119,6 +119,7 @@ struct FileWatcher
         ()
         
     fn dispatch-events (self)
+        local any-events? : bool
         for wd in self.watched-directories
             notification-buffer := wd.notification-buffer
             bufptr bufsize := 'data notification-buffer
@@ -153,6 +154,7 @@ struct FileWatcher
                             FileEventType.Modified
                         default (merge dispatch-callback)
 
+                    any-events? = true
                     cb (WideString->UTF-8 path) event-type
                 else ()
                 dispatch-callback ::
@@ -172,6 +174,7 @@ struct FileWatcher
                     &wd.overlapped
                     null
             ()
+        any-events?
 
     fn... unwatch (self, path : String)
         pathW := UTF-8->WideString path
