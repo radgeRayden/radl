@@ -82,7 +82,7 @@ sugar foreign (body...)
             _ next (String c-code) namespaces ('reverse parsed-constants) extra-symbols
         case ('options options...)
             _ next c-code namespaces constants extra-symbols
-        case ('export 'from (curly-list namespaces...) 'matching regexp)
+        case ('export (curly-list namespaces...) 'matching regexp)
             vvv bind exported
             fold (exported = namespaces) for namespace in namespaces...
                 if (('typeof namespace) != Symbol)
@@ -95,7 +95,7 @@ sugar foreign (body...)
                     exported
 
             _ next c-code exported constants extra-symbols
-        case ('export 'from (curly-list namespaces...))
+        case ('export (curly-list namespaces...))
             vvv bind exported
             fold (exported = namespaces) for namespace in namespaces...
                 if (('typeof namespace) != Symbol)
@@ -121,7 +121,7 @@ sugar foreign (body...)
     module-sym := 'unique Symbol "scopes-module"
     qq
         [embed]
-        [do]
+        [static-eval]
             [let] [module-sym] =
                 [static-eval]
                     [do]
