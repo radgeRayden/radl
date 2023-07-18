@@ -5,6 +5,7 @@ using import Rc
 using import String
 using import struct
 import C.errno
+import C.stdlib
 
 using import ..ext
 using import .headers
@@ -26,6 +27,22 @@ struct WatchedFile
             inline (self other)
                 and (self.descriptor == other.descriptor) (self.name == other.name)
 
+fn... full-path (path : (viewof String))
+    result := C.stdlib.realpath path null
+    if (result == null)
+        copy path
+    else
+        path := 'from-rawstring String result
+        free result
+        path
+
+fn... split-path (path : (viewof String))
+    # NOTE: dirname may segfault if given read only memory. Currently String always has a heap backing,
+    # but this may not be true in the future for serialized constant Strings.
+    _
+        'from-rawstring String (libgen.dirname (copy path))
+        'from-rawstring String (libgen.basename path)
+
 struct FileWatcher
     _handle : i32
     watch-descriptors : (Map String (Rc WatchDescriptor))
@@ -40,9 +57,8 @@ struct FileWatcher
             _handle = handle
 
     fn... watch (self, path : String, callback : FileWatchCallback)
-        # NOTE: dirname may segfault if given read only memory. Currently String always has a heap backing,
-        # but this may not be true in the future for serialized constant Strings.
-        dir file := 'from-rawstring String (libgen.dirname (copy path)), 'from-rawstring String (libgen.basename path)
+        path := full-path path
+        dir file := split-path path
         if (file == "")
             raise FileWatchError.NotAFile
 
