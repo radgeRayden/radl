@@ -1,8 +1,14 @@
-linux? := operating-system == 'linux
-windows? := operating-system == 'windows
-run-stage;
+using import ..ext ..config
+
+module-setup settings...
+let settings... =
+    _
+        enable-threading? = threading-available?
+        settings...
 
 sugar-if linux?
-    import .FileWatcherLinux
+    (import .FileWatcherLinux) settings...
 elseif windows?
-    import .FileWatcherWin32
+    (import .FileWatcherWin32) settings...
+else
+    static-error "Unsupported OS"

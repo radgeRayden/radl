@@ -1,16 +1,11 @@
-using import Array
-using import hash
-using import Map
-using import Rc
-using import String
-using import struct
-import C.errno
-import C.stdlib
+module-setup
+    enable-threading?
+    consolidate-events?
+    consolidation-interval
 
-using import ..ext
-using import .headers
-using import .common
-import ..traits
+using import Array hash Map Rc String struct
+using import .common .headers
+import C.errno C.stdlib ..traits
 
 typedef WatchDescriptor <<:: i32
     using traits.coerces-to-storage

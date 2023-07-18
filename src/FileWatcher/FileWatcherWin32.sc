@@ -1,15 +1,10 @@
-using import Array
-using import Buffer
-using import hash
-using import Map
-using import print
-using import Rc
-using import slice
-using import String
-using import struct
-using import .common
-using import .headers
-using import .WideString
+module-setup
+    enable-threading?
+    consolidate-events?
+    consolidation-interval
+
+using import Array Buffer hash Map print Rc slice String struct
+using import .common .headers .WideString
 import ..traits
 
 typedef WatchHandle <<:: windows.HANDLE
