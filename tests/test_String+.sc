@@ -1,3 +1,4 @@
+using import slice
 using import String
 using import String+
 using import testing

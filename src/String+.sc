@@ -1,10 +1,11 @@
 using import Array
+using import slice
 using import String
 import C.string
 stbsp := import stb.sprintf
 
 fn scan (input term)
-    inputptr termptr := imply input pointer, imply term pointer
+    inputptr termptr := 'data input, 'data term
     result := C.string.strstr inputptr termptr
     if (result != null)
         offset := (ptrtoint result usize) - (ptrtoint inputptr usize)
@@ -19,10 +20,10 @@ fn replace (input term replacement)
             'append result next
             break result
         else
-            'append result (lslice next start)
+            'append result (lslice (view next) start)
             'append result (copy replacement)
 
-            next := rslice next end
+            next := String (rslice next end)
             _ next (scan next term)
 
 fn split (input separator)
@@ -32,21 +33,21 @@ fn split (input separator)
             'append results next
             break results
         else
-            'append results (lslice next start)
-            next := rslice next end
+            'append results (String (lslice (view next) start))
+            next := String (rslice (view next) end)
             _ next (scan next separator)
 
 fn common-prefix (a b)
     for idx in (range (min (countof a) (countof b)))
         if ((a @ idx) != (b @ idx))
-            return (lslice a idx)
+            return (String (lslice a idx))
     copy a
 
 fn common-suffix (a b)
     for offset in (range (min (countof a) (countof b)))
         idxa idxb := (countof a) - offset - 1, (countof b) - offset - 1
         if ((a @ idxa) != (b @ idxb))
-            return (rslice a (idxa + 1))
+            return (String (rslice a (idxa + 1)))
     copy a
 
 do
