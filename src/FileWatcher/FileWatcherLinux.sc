@@ -4,7 +4,7 @@ module-setup
     consolidation-interval
 
 using import Array hash Map Rc String struct
-using import .common .headers
+using import .common .EventQueue .headers
 import C.errno C.stdlib ..traits
 
 typedef WatchDescriptor <<:: i32
@@ -43,6 +43,7 @@ struct FileWatcher
     watch-descriptors : (Map String (Rc WatchDescriptor))
     watched-dirs : (Map i32 String)
     file-callbacks : (Map WatchedFile FileWatchCallback)
+    event-queue : EventQueue
 
     inline __typecall (cls)
         handle := (inotify.init1 inotify.IN_NONBLOCK)
@@ -146,12 +147,22 @@ struct FileWatcher
                             FileEventType.Modified
                         else (merge dispatch-callback)
 
-                    any-events? = true
-                    cb path evtype
+
+                    static-if consolidate-events?
+                        'append-event self.event-queue path evtype cb
+                    else
+                        cb path evtype
+                        any-events? = true
                 else ()
                 dispatch-callback ::
 
                 offset + (sizeof inotify.event) + event.len
+
+        static-if consolidate-events?
+            interval := (none? consolidation-interval) 0.100:f64 (f64 consolidation-interval)
+            if ('consolidate-and-dispatch self.event-queue interval)
+                any-events? = true
+
         any-events?
 
     inline __drop (self)
