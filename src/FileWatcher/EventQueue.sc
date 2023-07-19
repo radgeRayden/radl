@@ -10,28 +10,29 @@ let StringT =
 
 time :=
     foreign (include "time.h")
-        export {extern typedef}
-        with-constants {CLOCKS_PER_SEC}
+        export {extern typedef struct}
+        export {define} matching "^(?=CLOCK_)"
 
 scopes-enable-fn-default-view-parameters;
 
 struct TimestampedEvent plain
-    time : time.clock_t
+    time : f64
     event : FileEventType
 
-fn to-seconds (timestamp)
-    (f64 timestamp) / (f64 time.CLOCKS_PER_SEC)
+fn to-seconds (t)
+    (f64 t.tv_sec) + ((f64 t.tv_nsec) / 1000000000:f64)
 
-fn time-difference (end start)
-    # FIXME: handle wrap around
-    (to-seconds end) - (to-seconds start)
+fn get-time ()
+    local ts : time.timespec
+    time.clock_gettime time.CLOCK_MONOTONIC &ts
+    to-seconds ts
 
 struct EventQueue
     file-events : (Map StringT (Array TimestampedEvent))
     callbacks : (Map StringT FileWatchCallback)
 
     fn append-event (self path event cb)
-        ts-event := TimestampedEvent (time.clock) (copy event)
+        ts-event := TimestampedEvent (get-time) (copy event)
         try
             events := 'get self.file-events path
             'append events ts-event
@@ -43,7 +44,7 @@ struct EventQueue
 
     fn consolidate-and-dispatch (self interval)
         local any-dispatched? : bool
-        now := (time.clock)
+        now := (get-time)
         for path events in self.file-events
             let cb =
                 try ('get self.callbacks path)
@@ -53,7 +54,7 @@ struct EventQueue
             local processed : usize
             for i ev in (enumerate events)
                 # we need to delay for `interval` so events can accumulate
-                if (i == 0 and (time-difference now ev.time) < interval)
+                if (i == 0 and (now - ev.time) < interval)
                     break;
 
                 # consolidate modified events into one
@@ -69,7 +70,7 @@ struct EventQueue
                     prev-ev := events @ (i - 1)
                     # group events by their distance in time. Only when you take `interval` without any events
                     # they will stop being grouped.
-                    if ((time-difference ev.time prev-ev.time) < interval)
+                    if ((ev.time - prev-ev.time) < interval)
                         dispatch-event ev
                     else
                         # reset `modified` grouping
