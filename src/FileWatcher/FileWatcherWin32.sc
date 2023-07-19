@@ -189,6 +189,8 @@ struct FileWatcher
             idx := 'get self.directory-path-map dir
             wd := self.watched-directories @ idx
             'discard wd.files file
+            'forget-file self.event-queue pathW
+
             if ((countof wd.files) == 0)
                 wd = ('pop self.watched-directories)
                 'discard self.directory-path-map dir

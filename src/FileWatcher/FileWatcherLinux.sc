@@ -99,6 +99,7 @@ struct FileWatcher
             cb-key := WatchedFile (copy wd) (copy path)
             if ('in? self.file-callbacks cb-key)
                 'discard self.file-callbacks cb-key
+                'forget-file self.event-queue path
             else
                 return;
 
