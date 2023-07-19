@@ -1,5 +1,12 @@
 using import Array Map String struct
-using import .common ..foreign
+using import .common ..config ..foreign
+
+let StringT =
+    sugar-if windows?
+        using import .WideString
+        WideStringView
+    else
+        String
 
 time :=
     foreign (include "time.h")
@@ -12,13 +19,16 @@ struct TimestampedEvent plain
     time : time.clock_t
     event : FileEventType
 
+fn to-seconds (timestamp)
+    (f64 timestamp) / (f64 time.CLOCKS_PER_SEC)
+
 fn time-difference (end start)
     # FIXME: handle wrap around
-    ((f64 end) / (f64 time.CLOCKS_PER_SEC)) - ((f64 start) / (f64 time.CLOCKS_PER_SEC))
+    (to-seconds end) - (to-seconds start)
 
 struct EventQueue
-    file-events : (Map String (Array TimestampedEvent))
-    callbacks : (Map String FileWatchCallback)
+    file-events : (Map StringT (Array TimestampedEvent))
+    callbacks : (Map StringT FileWatchCallback)
 
     fn append-event (self path event cb)
         ts-event := TimestampedEvent (time.clock) (copy event)

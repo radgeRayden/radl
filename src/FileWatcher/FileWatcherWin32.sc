@@ -4,7 +4,7 @@ module-setup
     consolidation-interval
 
 using import Array Buffer hash Map print Rc slice String struct
-using import .common .headers .WideString
+using import .common .EventQueue .headers .WideString
 import ..traits
 
 typedef WatchHandle <<:: windows.HANDLE
@@ -63,6 +63,7 @@ struct WatchedDirectory
 struct FileWatcher
     watched-directories : (Array WatchedDirectory)
     directory-path-map  : (Map WideStringView usize)
+    event-queue : EventQueue
 
     fn... watch (self, path : String, callback : FileWatchCallback)
         pathW := UTF-8->WideString path
@@ -124,7 +125,7 @@ struct FileWatcher
             local result = windows.GetOverlappedResult wd.handle &wd.overlapped &bytes-written false
             if (not result)
                 assert ((windows.GetLastError) == windows.ERROR_IO_INCOMPLETE)
-                return false
+                bytes-written = 0 # just in case
 
             loop (offset = 0:u32)
                 if (offset >= bytes-written)
@@ -150,8 +151,11 @@ struct FileWatcher
                             FileEventType.Modified
                         default (merge dispatch-callback)
 
-                    any-events? = true
-                    cb (WideString->UTF-8 path) event-type
+                    static-if consolidate-events?
+                        'append-event self.event-queue path event-type cb
+                    else
+                        cb (WideString->UTF-8 path) event-type
+                        any-events? = true
                 else ()
                 dispatch-callback ::
 
@@ -161,7 +165,7 @@ struct FileWatcher
                 offset + event.NextEntryOffset
 
             # queue again.
-            result =
+            if result
                 windows.ReadDirectoryChangesW wd.handle bufptr (bufsize as u32) false 
                     |   windows.FILE_NOTIFY_CHANGE_FILE_NAME
                         windows.FILE_NOTIFY_CHANGE_LAST_WRITE    
@@ -170,6 +174,12 @@ struct FileWatcher
                     &wd.overlapped
                     null
             ()
+
+        static-if consolidate-events?
+            interval := (none? consolidation-interval) 0.100:f64 (f64 consolidation-interval)
+            if ('consolidate-and-dispatch self.event-queue interval)
+                any-events? = true
+
         any-events?
 
     fn... unwatch (self, path : String)

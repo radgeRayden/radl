@@ -71,6 +71,9 @@ inline WideString+ (T)
                         and ((elementof otherT) == (storageof ET)))
                 inline (self)
                     ('data self) as otherT
+            elseif (otherT == String)
+                inline (self)
+                    WideString->UTF-8 self
             else
                 super-type.__imply thisT otherT
 
