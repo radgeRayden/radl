@@ -1,7 +1,5 @@
 using import String
-
-vvv using
-(import FileWatcher) (consolidate-events? = true)
+using import FileWatcher
 
 global fw : FileWatcher
 try

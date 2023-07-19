@@ -4,7 +4,8 @@ module-setup settings...
 let settings... =
     _
         enable-threading? = threading-available?
-        settings...
+        consolidate-events? = va-option consolidate-events? settings... true
+        consolidation-interval = va-option consolidation-interval settings... 0.1:f64
 
 sugar-if linux?
     (import .FileWatcherLinux) settings...
