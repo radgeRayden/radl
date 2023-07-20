@@ -1,8 +1,4 @@
-using import Array
-using import C.stdio
-using import enum
-using import String
-using import struct
+using import Buffer C.stdio enum slice String struct
 
 enum FileError plain
     NotAccessible
@@ -74,27 +70,24 @@ struct FileStream
         rewind self._handle
         ()
 
-    inline read-elements (self count arrT)
-        local result : arrT
-        'resize result count
-
-        element-size := sizeof arrT.ElementType
-        ptr := (imply result pointer) as voidstar
-        elements-read := fread ptr element-size count self._handle
+    fn read-elements (self container)
+        ptr count := 'data container
+        element-size := sizeof (elementof (typeof ptr))
+        elements-read := fread (ptr as voidstar) element-size count self._handle
 
         if (elements-read < count)
             if (not ('eof? self))
                 raise FileError.ReadError
 
-        # resizing downwards doesn't reallocate
-        'resize result elements-read
-        result
+        slice container 0 elements-read
 
     fn read-bytes (self count)
-        'read-elements self count (Array u8)
+        'read-elements self (heapbuffer u8 count)
 
     fn read-string (self count)
-        'read-elements self count String
+        local result : String count
+        'resize result count
+        trim ('read-elements self result)
 
     fn read-all-bytes (self)
         'seek-absolute self 0
@@ -159,14 +152,13 @@ struct FileStream
     fn eof? (self)
         (feof self._handle) as bool
 
-    fn... write (self, data : Array, offset : usize, count : usize)
-        ptr := (& (data @ offset)) as voidstar
-        element-size := sizeof ((typeof data) . ElementType)
+    fn write (self data)
+        viewing data
+        ptr count := 'data data
+        element-size := sizeof (elementof (typeof ptr))
         elements-written := fwrite ptr element-size count self._handle
         if (elements-written < count)
             raise FileError.WriteError
-    case (self, data : Array)
-        this-function self data 0 (countof data)
 
 do
     let FileStream FileMode FileError
