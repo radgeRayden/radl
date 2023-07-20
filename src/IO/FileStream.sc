@@ -99,24 +99,22 @@ struct FileStream
 
     fn read-line (self)
         local result : String
-        local chunk : String
-
-        chunk-size := 1024
+        chunk := heapbuffer i8 1024
 
         while (not ('eof? self))
-            'resize chunk chunk-size
-            ptr := (imply chunk pointer) as voidstar
+            ptr chunk-size := 'data chunk
             bytes-read := fread ptr 1 chunk-size self._handle
 
             if (bytes-read < chunk-size)
                 if (not ('eof? self))
                     raise FileError.ReadError
 
+            chunk := (lslice (view chunk) bytes-read)
             for i c in (enumerate chunk)
                 if (c == "\n")
-                    'resize chunk i
                     'seek self (((i + 1) as i64) - (bytes-read as i64))
-                    return (result .. chunk)
+                    'append result (lslice chunk i)
+                    return result
                 elseif (c == "\r")
                     local next-byte : i8
                     if (i == (countof chunk))
@@ -130,10 +128,10 @@ struct FileStream
                     else
                         'seek self (((i + 1) as i64) - bytes-read)
 
-                    'resize chunk i
-                    return (result .. chunk)
+                    'append result (lslice chunk i)
+                    return result
 
-            result ..= chunk
+            'append result chunk
 
         result
 
