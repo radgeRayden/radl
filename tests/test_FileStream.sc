@@ -1,26 +1,39 @@
-using import String testing print
+using import Buffer String testing print
 using import IO.FileStream
 
-test-str := S"Hello, World!\n"
-local result-str : String
-local success : bool
+inline FileStream (...)
+    try (FileStream ...)
+    except (ex)
+        print ex
+        exit 1
+
+f := FileStream module-path FileMode.Read
+
 try
-    f := FileStream module-path FileMode.Read
     for line in ('lines f)
         print line
     'rewind f
     print ('read-all-bytes f)
+else ()
 
-    f := FileStream "test.txt" FileMode.Write
-    'write f test-str
-    drop f
+test-str := S"Hello, World!\n"
+f := FileStream "test.txt" FileMode.Write
 
-    f := FileStream "test.txt" FileMode.Read
-    result-str = ('read-all-string f)
-    print result-str
-    success = true
-except (ex)
-    print ex
+try ('write f test-str)
+else ()
+drop f
 
+f := FileStream "test.txt" FileMode.Read
+let result-str =
+    try ('read-all-string f)
+    else (exit 1)
 test (result-str == test-str)
-test success
+'rewind f
+
+# the test string is 14 characters long. This means we can fit 3 u32s (12 bytes).
+let elements =
+    try ('read-elements f (heapbuffer u32 10))
+    else (exit 1)
+
+test ((countof elements) == 3)
+test (('tell f) == 12)

@@ -63,7 +63,7 @@ struct FileStream
         ()
 
     fn seek-absolute (self position)
-        fseek self._handle position SEEK_SET
+        fseek self._handle (position as i64) SEEK_SET
         ()
 
     fn rewind (self)
@@ -71,13 +71,23 @@ struct FileStream
         ()
 
     fn read-elements (self container)
+        start-position := 'tell self
         ptr count := 'data container
         element-size := sizeof (elementof (typeof ptr))
         elements-read := fread (ptr as voidstar) element-size count self._handle
+        end-position := 'tell self
 
         if (elements-read < count)
             if (not ('eof? self))
                 raise FileError.ReadError
+
+            # For larger elements, incomplete reads may occur. According to POSIX `fread` returns
+            # the number of elements successfully read, so our data won't be corrupted. However we
+            # should set the cursor back to the end of the last element read.
+            bytes-written := elements-read * element-size
+            expected-end := start-position + bytes-written
+            if (expected-end < end-position)
+                'seek-absolute self expected-end
 
         slice container 0 elements-read
 
