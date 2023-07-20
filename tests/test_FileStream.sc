@@ -16,14 +16,15 @@ try
     print ('read-all-bytes f)
 else ()
 
+test-path := (module-dir .. "/test.txt")
 test-str := S"Hello, World!\n"
-f := FileStream "test.txt" FileMode.Write
+f := FileStream test-path FileMode.Write
 
 try ('write f test-str)
 else ()
 drop f
 
-f := FileStream "test.txt" FileMode.Read
+f := FileStream test-path FileMode.Read
 let result-str =
     try ('read-all-string f)
     else (exit 1)
