@@ -1,4 +1,12 @@
-using import Buffer C.stdio enum slice String struct
+using import Buffer enum slice String struct
+
+module-setup API
+
+using
+    static-if default-import?
+        import .posix-files
+    else
+        API
 
 enum FileError plain
     NotAccessible
@@ -12,31 +20,14 @@ enum FileMode plain
     Append
     Update
 
-    inline get-mode-string (self)
-        T := this-type
-
-        switch self
-        case T.Read
-            "rb\x00"
-        case T.Write
-            "wb\x00"
-        case T.ReadWrite
-            "wb+"
-        case T.Append
-            "ab\x00"
-        case T.Update
-            "ab+"
-        default
-            assert false "invalid enum value"
-
 struct FileStream
-    _handle : (mutable@ FILE)
+    _handle : FileHandle
     _mode   : FileMode
     _path   : String
 
     inline __typecall (cls path mode)
-        handle := fopen path ('get-mode-string mode)
-        if (handle == null)
+        handle := open-file path mode
+        if (is-handle-invalid? handle)
             raise FileError.NotAccessible
 
         super-type.__typecall cls
@@ -44,52 +35,43 @@ struct FileStream
             _mode = mode
 
     inline __drop (self)
-        fclose self._handle
-        ()
+        close-file self._handle
 
     fn __countof (self)
-        cursor := ftell self._handle
-        fseek self._handle 0 SEEK_END
-        size := ftell self._handle
-        fseek self._handle cursor SEEK_SET
-
-        size as usize
+        get-file-length self._handle
 
     fn tell (self)
-        (ftell self._handle) as usize
+        get-cursor-position self._handle
 
     fn seek (self offset)
-        fseek self._handle offset SEEK_CUR
-        ()
+        set-cursor-position self._handle ((('tell self) as i64) + offset)
 
     fn seek-absolute (self position)
-        fseek self._handle (position as i64) SEEK_SET
-        ()
+        set-cursor-position self._handle position
 
     fn rewind (self)
-        rewind self._handle
-        ()
+        set-cursor-position self._handle 0
 
     fn read-elements (self container)
-        start-position := 'tell self
         ptr count := 'data container
         element-size := sizeof (elementof (typeof ptr))
-        elements-read := fread (ptr as voidstar) element-size count self._handle
-        end-position := 'tell self
+        expected-bytes := count * element-size
 
-        if (elements-read < count)
+        start-position := 'tell self
+        bytes-read := read-bytes self._handle ptr expected-bytes
+        elements-read := bytes-read // element-size
+
+        if (bytes-read < expected-bytes)
             if (not ('eof? self))
                 raise FileError.ReadError
 
-            # For larger elements, incomplete reads may occur. According to POSIX `fread` returns
-            # the number of elements successfully read, so our data won't be corrupted. However we
-            # should set the cursor back to the end of the last element read.
-            bytes-written := elements-read * element-size
-            expected-end := start-position + bytes-written
-            if (expected-end < end-position)
-                'seek-absolute self expected-end
+            # For larger elements, incomplete reads may occur.
+            # We should set the cursor back to the end of the last element read.
+            expected-advance := elements-read * element-size
+            if (expected-advance < bytes-read)
+                'seek-absolute self (start-position + expected-advance)
 
-        slice container 0 elements-read
+        lslice container elements-read
 
     fn read-bytes (self count)
         'read-elements self (heapbuffer u8 count)
@@ -112,14 +94,8 @@ struct FileStream
         chunk := heapbuffer i8 1024
 
         while (not ('eof? self))
-            ptr chunk-size := 'data chunk
-            bytes-read := fread ptr 1 chunk-size self._handle
-
-            if (bytes-read < chunk-size)
-                if (not ('eof? self))
-                    raise FileError.ReadError
-
-            chunk := (lslice (view chunk) bytes-read)
+            chunk := 'read-elements self (view chunk)
+            bytes-read := countof chunk
             for i c in (enumerate chunk)
                 if (c == "\n")
                     'seek self (((i + 1) as i64) - (bytes-read as i64))
@@ -128,7 +104,7 @@ struct FileStream
                 elseif (c == "\r")
                     local next-byte : i8
                     if (i == (countof chunk))
-                        fread (&next-byte as voidstar) 1 1 self._handle
+                        'read-elements self ((ViewBuffer (mutable@ i8)) &next-byte 1)
                     else
                         next-byte = chunk @ (i + 1)
 
@@ -158,13 +134,14 @@ struct FileStream
                 view self
 
     fn eof? (self)
-        (feof self._handle) as bool
+        eof? self._handle
 
     fn write (self data)
         viewing data
         ptr count := 'data data
         element-size := sizeof (elementof (typeof ptr))
-        elements-written := fwrite ptr element-size count self._handle
+        bytes-written := write-bytes self._handle ptr (count * element-size)
+        elements-written := bytes-written // element-size
         if (elements-written < count)
             raise FileError.WriteError
 
