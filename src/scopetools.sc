@@ -47,7 +47,7 @@ sugar make-scope (...)
                 [locals];
 
 spice scope-key-lookup (scope key f)
-    using import String
+    using import hash String
     scope as:= Scope
 
     sw := (sc_switch_new `(hash (String key)))
