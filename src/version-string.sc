@@ -1,3 +1,6 @@
+import C.bindings
+from C.bindings.extern let feof
+
 fn git-version ()
     _popen _pclose popen pclose := # hack for windows-mingw
     using import C.stdio

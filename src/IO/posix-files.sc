@@ -1,5 +1,8 @@
 using import C.stdio
 
+import C.bindings
+from C.bindings.extern let feof
+
 inline get-mode-string (value)
     T := (typeof value)
 
