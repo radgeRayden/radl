@@ -8,7 +8,9 @@ fn git-version ()
 
     let popen pclose =
         static-if (operating-system == 'windows) (_ _popen _pclose)
-        else (_ popen pclose)
+            from C.bindings.extern let _popen _pclose
+        else
+            from C.bindings.extern let popen pclose
 
     inline try-commands (def cmd...)
         let devnull =
