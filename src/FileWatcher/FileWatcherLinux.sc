@@ -58,7 +58,7 @@ struct FileWatcher
         if (file == "")
             raise FileWatchError.NotAFile
 
-        using inotify filter "^IN_"
+        using inotify filter "^IN_.+$"
         mask := | IN_ONLYDIR IN_CREATE IN_MODIFY IN_DELETE
         let wd =
             try
@@ -138,7 +138,7 @@ struct FileWatcher
                     cb := ('get self.file-callbacks cb-key)
 
                     vvv bind evtype
-                    do (using inotify filter "^IN_")
+                    do (using inotify filter "^IN_.+$")
                         mask := event.mask
                         if (mask & IN_CREATE)
                             FileEventType.Created
