@@ -40,7 +40,7 @@ struct EventQueue
         else
             'set self.file-events (copy path)
                 (Array TimestampedEvent) ts-event
-            'set self.callbacks (copy path) cb
+            'set self.callbacks (copy path) (dupe cb)
 
     fn consolidate-and-dispatch (self interval)
         local any-dispatched? : bool
