@@ -170,5 +170,5 @@ struct FileWatcher
         unistd.close self._handle
 
 do
-    let FileWatcher
+    let FileWatcher FileEventType FileWatchError FileWatchCallback
     local-scope;

@@ -197,5 +197,5 @@ struct FileWatcher
         else ()
 
 do
-    let FileWatcher
+    let FileWatcher FileEventType FileWatchError FileWatchCallback
     local-scope;
