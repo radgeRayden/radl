@@ -42,18 +42,20 @@ fn... split (input : (Slice String), separator)
 
 fn... common-prefix (a, b)
     viewing *...
-    for idx in (range (min (countof a) (countof b)))
+    smallest := min (countof a) (countof b)
+    for idx in (range smallest)
         if ((a @ idx) != (b @ idx))
             return (trim (lslice a idx))
-    copy a
+    trim (lslice a smallest)
 
 fn... common-suffix (a, b)
     viewing *...
-    for offset in (range (min (countof a) (countof b)))
+    smallest := min (countof a) (countof b)
+    for offset in (range smallest)
         idxa idxb := (countof a) - offset - 1, (countof b) - offset - 1
         if ((a @ idxa) != (b @ idxb))
             return (trim (rslice a (idxa + 1)))
-    copy a
+    trim (rslice a ((countof a) - smallest))
 
 do
     let scan replace split common-prefix common-suffix

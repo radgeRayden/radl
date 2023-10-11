@@ -19,3 +19,14 @@ test
     (common-prefix S"/project/min/max/include.sc" S"/project/blah.sc") == S"/project/"
 test
     (common-suffix S"/project/min/max/include.sc" S"/project/blah.sc") == S".sc"
+
+test
+    (common-prefix S"blah.sc" S"blah") == S"blah"
+test
+    (common-prefix S"blah" S"blah.sc") == S"blah"
+
+test
+    (common-suffix S"/project/min/max/include.sc" S".sc") == S".sc"
+test
+    (common-suffix S".sc" S"/project/min/max/include.sc" ) == S".sc"
+
