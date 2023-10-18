@@ -30,3 +30,7 @@ test
 test
     (common-suffix S".sc" S"/project/min/max/include.sc" ) == S".sc"
 
+test (starts-with? S"/home/user" S"/home")
+test (not (starts-with? S"/home/user" S"/usr"))
+test (ends-with? S"todo.txt" S".txt")
+test (not (ends-with? S"todo.txt" S".dat"))
