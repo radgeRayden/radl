@@ -25,3 +25,4 @@ for id element in am
 test ((countof am) == 8)
 
 am = ((ArrayMap One))
+One.test-refcount-balanced;
