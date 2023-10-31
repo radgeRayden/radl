@@ -33,6 +33,7 @@ typedef ArrayMap
             _slots : (Array u32)
             _vacant-slots : (Array u32)
             _generation : u32
+            _generation-outdated? : bool
 
             ElementType := ET
             IndexType   := IndexType
@@ -40,12 +41,20 @@ typedef ArrayMap
             inline __countof (self)
                 (countof self._items) - (countof self._vacant-slots)
 
+            inline update-generation (self)
+                if self._generation-outdated?
+                    self._generation += 1
+                    self._generation-outdated? = false
+
+                deref self._generation
+
             fn add (self item)
                 if (empty? self._vacant-slots)
                     slot := (countof self._items) as u32
 
                     # if this is false, there are too many elements. Return fake key that doesn't point to anything.
                     if (slot < ~0:u32)
+                        update-generation self
                         'append self._items item
                         'append self._slots self._generation
 
@@ -53,6 +62,7 @@ typedef ArrayMap
                         VersionedIndex slot self._generation
                         IndexType
                 else
+                    update-generation self
                     slot := ('pop self._vacant-slots)
                     # overwrites undefined element at slot without dropping
                     assign item (self._items @ slot)
@@ -60,6 +70,8 @@ typedef ArrayMap
                     bitcast
                         VersionedIndex slot self._generation
                         IndexType
+
+            unlet update-generation
 
             fn in? (self id)
                 id := storagecast id
@@ -69,9 +81,7 @@ typedef ArrayMap
                 if ('in? self id)
                     id := storagecast id
 
-                    self._generation += 1
-                    if (self._generation == ~0:u32)
-                        # ?
+                    self._generation-outdated? = true
 
                     if (id.slot == (countof self._slots))
                         'pop self._slots
@@ -102,7 +112,9 @@ typedef ArrayMap
                             inline (i)
                                 i < (countof self._slots)
                             inline (i)
-                                _ i (self._items @ i)
+                                _
+                                    bitcast (VersionedIndex i (self._slots @ i)) IndexType
+                                    self._items @ i
                             inline (i)
                                 loop (idx = (i + 1))
                                     if ((vacant-slot-index < (countof self._vacant-slots)) and (idx == (self._vacant-slots @ vacant-slot-index)))
