@@ -43,8 +43,12 @@ typedef ArrayMap
             fn add (self item)
                 if (empty? self._vacant-slots)
                     slot := (countof self._items) as u32
-                    'append self._items item
-                    'append self._slots self._generation
+
+                    # if this is false, there are too many elements. Return fake key that doesn't point to anything.
+                    if (slot < ~0:u32)
+                        'append self._items item
+                        'append self._slots self._generation
+
                     bitcast
                         VersionedIndex slot self._generation
                         IndexType
@@ -62,27 +66,51 @@ typedef ArrayMap
                 ((countof self._slots) > id.slot) and ((self._slots @ id.slot) == id.generation)
 
             fn remove (self id)
-                id := storagecast id
-
                 if ('in? self id)
+                    id := storagecast id
+
                     self._generation += 1
                     if (self._generation == ~0:u32)
                         # ?
 
-                    self._slots @ id.slot = ~0:u32
-                    'append self._vacant-slots id.slot
-                    # 'sort self._vacant-slots
+                    if (id.slot == (countof self._slots))
+                        'pop self._slots
+                        'pop self._items
+                    else
+                        self._slots @ id.slot = ~0:u32
+                        'append self._vacant-slots id.slot
 
-                    # remove element and replace it with undefined data
-                    'append self._items (dupe (undef ElementType))
-                    'swap self._items ((countof self._items) - 1) id.slot
-                    'pop self._items
+                        # remove element and replace it with undefined data
+                        'append self._items (dupe (undef ElementType))
+                        'swap self._items ((countof self._items) - 1) id.slot
+                        'pop self._items
 
             fn get (self id)
                 if ('in? self id)
                     self._items @ ((storagecast id) . slot)
                 else
                     raise ArrayMapError.KeyNotFound
+
+            inline __as (cls T)
+                static-if (T == Generator)
+                    inline (self)
+                        local vacant-slot-index = 0:usize
+                        'sort self._vacant-slots
+
+                        Generator
+                            inline () 0:u32
+                            inline (i)
+                                i < (countof self._slots)
+                            inline (i)
+                                _ i (self._items @ i)
+                            inline (i)
+                                loop (idx = (i + 1))
+                                    if ((vacant-slot-index < (countof self._vacant-slots)) and (idx == (self._vacant-slots @ vacant-slot-index)))
+                                        vacant-slot-index += 1
+                                        idx + 1
+                                    else
+                                        break idx
+
 
             inline __drop (self)
                 count := countof self._items

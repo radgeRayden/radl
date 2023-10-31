@@ -18,4 +18,7 @@ test ('in? am e5)
 test (not ('in? am e5))
 test ('in? am e1)
 
+for id element in am
+    print id ('check element)
+
 am = ((ArrayMap One))
