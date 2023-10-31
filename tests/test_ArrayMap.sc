@@ -2,7 +2,7 @@ using import ArrayMap
 using import testing
 
 local am : (ArrayMap One)
-e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 e0 :=
+e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 :=
     va-map
         inline (i)
             'add am (One i)
@@ -20,5 +20,7 @@ test ('in? am e1)
 
 for id element in am
     print id ('check element)
+
+test ((countof am) == 7)
 
 am = ((ArrayMap One))
