@@ -107,8 +107,16 @@ typedef ArrayMap
                         local vacant-slot-index = 0:usize
                         'sort self._vacant-slots
 
+                        inline next-occupied-slot (start)
+                            loop (idx = start)
+                                if ((vacant-slot-index < (countof self._vacant-slots)) and (idx == (self._vacant-slots @ vacant-slot-index)))
+                                    vacant-slot-index += 1
+                                    idx + 1
+                                else
+                                    break idx
+
                         Generator
-                            inline () 0:u32
+                            inline () (next-occupied-slot 0:u32)
                             inline (i)
                                 i < (countof self._slots)
                             inline (i)
@@ -116,25 +124,22 @@ typedef ArrayMap
                                     bitcast (VersionedIndex i (self._slots @ i)) IndexType
                                     self._items @ i
                             inline (i)
-                                loop (idx = (i + 1))
-                                    if ((vacant-slot-index < (countof self._vacant-slots)) and (idx == (self._vacant-slots @ vacant-slot-index)))
-                                        vacant-slot-index += 1
-                                        idx + 1
-                                    else
-                                        break idx
-
+                                next-occupied-slot (i + 1)
 
             inline __drop (self)
                 count := countof self._items
 
-                # sort in descending order so we can pop the vacant slots without swapping with another vacant slot
-                'sort self._vacant-slots
-                    (x) -> (- x)
+                static-if (not (plain? ElementType))
+                    # sort vacant slots in descending order
+                    'sort self._vacant-slots ((x) -> ~x)
+                    local vacant-slot-index = 0:usize
 
-                for slot in self._vacant-slots
-                    'swap self._items ((countof self._items) - 1) slot
-                    # don't drop undefined element
-                    lose ('pop self._items)
+                    for i in (rrange (countof self._items))
+                        if (vacant-slot-index < (countof self._vacant-slots) and (i == (self._vacant-slots @ vacant-slot-index)))
+                            lose ('pop self._items)
+                            vacant-slot-index += 1
+                        else
+                            'pop self._items
 
                 super-type.__drop self
 

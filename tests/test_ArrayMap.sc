@@ -14,15 +14,22 @@ test ('in? am e5)
 'remove am e5
 'remove am e7
 'remove am e2
+'remove am e2
 'add am (One 25)
+
+for id element in am
+    'check element
 
 test (not ('in? am e5))
 test ('in? am e1)
 
-for id element in am
-    print id ('check element)
+'remove am e0
+'remove am e9
 
-test ((countof am) == 8)
+for id element in am
+    'check element
+
+test ((countof am) == 6)
 
 am = ((ArrayMap One))
 One.test-refcount-balanced;
