@@ -90,5 +90,5 @@ fn... ASCII-toupper (str)
     result
 
 do
-    let scan replace split common-prefix common-suffix starts-with? ends-with?
+    let scan replace split common-prefix common-suffix starts-with? ends-with? ASCII-tolower ASCII-toupper
     local-scope;
