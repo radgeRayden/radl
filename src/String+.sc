@@ -65,6 +65,30 @@ fn... ends-with? (str, suffix)
     viewing *...
     (common-suffix str suffix) == suffix
 
+fn... ASCII-tolower (str)
+    viewing str
+
+    delta := char"a" - char"A"
+    local result : String
+    for c in str
+        if (c >= char"A" and c <= char"Z")
+            'append result (c + delta)
+        else
+            'append result c
+    result
+
+fn... ASCII-toupper (str)
+    viewing str
+
+    delta := char"a" - char"A"
+    local result : String
+    for c in str
+        if (c >= char"a" and c <= char"z")
+            'append result (c - delta)
+        else
+            'append result c
+    result
+
 do
     let scan replace split common-prefix common-suffix starts-with? ends-with?
     local-scope;
