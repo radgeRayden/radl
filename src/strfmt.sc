@@ -102,10 +102,10 @@ fn value->format-specifier (val)
             _ str"%u" val
     elseif (T < real)
         _ str"%f" val
+    elseif (or (T < zarray) (T == string) (T == String) (T == rawstring) (T == (@ i8)))
+        _ str"%s" val
     elseif (T < pointer)
         _ str"%p" val
-    elseif (or (T < zarray) (T == string) (T == String) (T == rawstring))
-        _ str"%s" val
     elseif (T < Arguments)
         vvv bind specifiers args
         fold (specifiers = str"") for arg in ('args val)
