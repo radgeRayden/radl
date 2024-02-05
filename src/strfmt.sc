@@ -90,6 +90,49 @@ fn parse-template (input)
 
     result
 
+fn CEnum->String (T)
+    T as:= type
+    inline gen-switch (value)
+        local tags : (Array (tuple (value = u64) (name = string)))
+        sw := (sc_switch_new value)
+        for k v in ('symbols T)
+            if (('typeof v) < CEnum)
+                'append tags
+                    typeinit
+                        value = (sc_const_int_extract v)
+                        name = k as Symbol as string
+        'sort tags
+
+        # deduplicate
+        fold (prev-value prev-name = -1:u64 str"") for i in (rrange (countof tags))
+            t := tags @ i
+            value name := (deref t.value), (deref t.name)
+
+            let name =
+                if (t.value == prev-value)
+                    'remove tags (i + 1)
+                    .. name "|" prev-name
+                else
+                    name
+
+            t.name = (copy name)
+
+            _ value name
+
+        for t in tags
+            sc_switch_append_case sw (sc_const_int_new T t.value)
+                spice-quote
+                    String [t.name]
+
+        sc_switch_append_default sw
+            spice-quote
+                String "?invalid?"
+        sw
+
+    spice-quote
+        fn (value)
+            [(gen-switch value)]
+
 fn value->format-specifier (val)
     returning string Value
 
@@ -106,6 +149,8 @@ fn value->format-specifier (val)
         _ str"%s" val
     elseif (T < pointer)
         _ str"%p" val
+    elseif (T < CEnum)
+        _ str"%s" `([(CEnum->String T)] val)
     elseif (T < Arguments)
         vvv bind specifiers args
         fold (specifiers = str"") for arg in ('args val)
