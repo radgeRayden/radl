@@ -36,7 +36,6 @@ struct Atlas
                 space := copy target-space
                 target-space = 'pop self.spaces
                 result small-split big-split := this-type.split rect space
-                using import print
 
                 inline set-pos ()
                     # I don't think we have ref multi assignment.
