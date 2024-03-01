@@ -27,7 +27,18 @@ sugar stop-expansion-if (condition)
     else
         _ '() next-expr
 
+inline enum-bitfield (ET outT values...)
+    let values... =
+        va-map
+            inline (value)
+                (imply value ET) as outT
+            values...
+    | values...
+
 do
     let module-exists?
         stop-expansion-if
+        enum-bitfield
+
+    |> := va-map
     local-scope;
