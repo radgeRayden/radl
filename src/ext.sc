@@ -35,10 +35,13 @@ inline enum-bitfield (ET outT values...)
             values...
     | values...
 
-do
-    let module-exists?
-        stop-expansion-if
-        enum-bitfield
+inline typeinit@ (...)
+    implies (T)
+        static-assert (T < pointer)
+        imply (& (local (elementof T) ...)) T
 
+do
+    let module-exists? stop-expansion-if enum-bitfield typeinit@
     |> := va-map
+
     local-scope;
