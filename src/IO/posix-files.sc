@@ -56,4 +56,7 @@ do
     fn eof? (handle)
         (feof handle) as bool
 
+    fn log-error (msg)
+        printf "%s" (msg as rawstring)
+
     local-scope;
