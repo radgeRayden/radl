@@ -1,12 +1,17 @@
-using import Buffer enum slice String struct
+using import Buffer enum slice ..strfmt String struct
 
-module-setup API
+module-setup API ContextType
 
 using
     static-if default-import?
         import .posix-files
     else
         API
+
+let ContextType =
+    static-if (none? ContextType)
+        storageof none
+    else ContextType
 
 enum FileError plain
     NotAccessible
@@ -21,13 +26,14 @@ enum FileMode plain
     Update
 
 struct FileStream
-    _handle : FileHandle
-    _mode   : FileMode
-    _path   : String
+    _handle  : FileHandle
+    _mode    : FileMode
+    _path    : String
 
     inline __typecall (cls path mode)
         handle := open-file path mode
         if (is-handle-invalid? handle)
+            log-error f"Could not open file ${path}"
             raise FileError.NotAccessible
 
         super-type.__typecall cls
@@ -63,6 +69,7 @@ struct FileStream
 
         if (bytes-read < expected-bytes)
             if (not ('eof? self))
+                log-error f"Error reading file ${self._path}"
                 raise FileError.ReadError
 
             # For larger elements, incomplete reads may occur.
@@ -143,6 +150,7 @@ struct FileStream
         bytes-written := write-bytes self._handle ptr (count * element-size)
         elements-written := bytes-written // element-size
         if (elements-written < count)
+            log-error f"Error writing to file ${self._path}"
             raise FileError.WriteError
 
 do
