@@ -57,6 +57,6 @@ do
         (feof handle) as bool
 
     fn log-error (msg)
-        printf "%s" (msg as rawstring)
+        printf "%s\n" (msg as rawstring)
 
     local-scope;
