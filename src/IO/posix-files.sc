@@ -57,6 +57,7 @@ do
         (feof handle) as bool
 
     fn log-error (msg)
-        printf "%s\n" (msg as rawstring)
+        using import print
+        print2 msg
 
     local-scope;
