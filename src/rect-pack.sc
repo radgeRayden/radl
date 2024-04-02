@@ -23,9 +23,9 @@ struct Atlas
 
     # Clears a rect atlas and sets it up for packing with a given space size.
     # TL note: I could have made this more generic but I don't think it needs to be.
-    fn... clear (self, side-size : i32)
+    fn... clear (self, side-size : i32, ox : i32 = 0, oy : i32 = 0)
         'clear self.spaces
-        'emplace-append self.spaces 0 0 side-size side-size
+        'emplace-append self.spaces ox oy side-size side-size
 
     # Packs a rectangle into an atlas if it fits. Returns whether or not it could
     # be packed. Sets `rect`'s `x`/`y` if it fits.
