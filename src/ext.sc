@@ -38,7 +38,7 @@ inline enum-bitfield (ET outT values...)
 inline typeinit@ (...)
     implies (T)
         static-assert (T < pointer)
-        imply (& (local (elementof T) ...)) T
+        imply (& (local := (elementof T) ...)) T
 
 do
     let module-exists? stop-expansion-if enum-bitfield typeinit@

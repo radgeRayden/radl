@@ -84,7 +84,7 @@ struct FileStream
         'read-elements self (heapbuffer u8 count)
 
     fn read-string (self count)
-        local result : String count
+        local result = String count
         'resize result count
         trim ('read-elements self result)
 
