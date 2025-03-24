@@ -1,17 +1,12 @@
 using import Buffer enum slice ..strfmt String struct
 
-module-setup API ContextType
+module-setup API
 
 using
     static-if default-import?
         import .posix-files
     else
         API
-
-let ContextType =
-    static-if (none? ContextType)
-        storageof none
-    else ContextType
 
 enum FileError plain
     NotAccessible
