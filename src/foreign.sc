@@ -18,9 +18,7 @@
         with-scope libABC
 
 # using import .core-extensions
-using import .strfmt
-using import slice
-using import String
+using import include .strfmt slice String
 
 let constant-wrapper-prefix = "scopes_constant_wrapper__"
 let constant-wrapper-regexp = (.. "^(?=" constant-wrapper-prefix ")")

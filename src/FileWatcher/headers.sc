@@ -1,4 +1,4 @@
-using import ..foreign
+using import ..foreign include
 
 linux? := operating-system == 'linux
 windows? := operating-system == 'windows
