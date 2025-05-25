@@ -1,13 +1,5 @@
 using import Buffer enum slice ..strfmt String struct
 
-module-setup API
-
-using
-    static-if default-import?
-        import .posix-files
-    else
-        API
-
 enum FileError plain
     NotAccessible
     ReadError
@@ -21,6 +13,8 @@ enum FileMode plain
     Update
 
 struct FileStream
+    using import .posix-files
+
     _handle  : FileHandle
     _mode    : FileMode
     _path    : String
