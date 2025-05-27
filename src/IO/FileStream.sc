@@ -1,4 +1,5 @@
 using import Buffer enum slice ..strfmt String struct
+import .posix-files
 
 enum FileError plain
     NotAccessible
@@ -12,142 +13,133 @@ enum FileMode plain
     Append
     Update
 
-sugar API-call (name args...)
-    qq
-        ([.] ([typeof] self) API [name])
-            unquote-splice args...
-run-stage;
+inline make-filestream-type (handleT)
+    struct (.. "FileStream<" (tostring handleT) ">")
+        _handle  : handleT
+        _mode    : FileMode
+        _path    : String
 
-struct FileStream
-    API := import .posix-files
+        inline __typecall (cls path mode)
+            handle := handleT.open-file path mode
+            if (handleT.is-handle-invalid? handle)
+                raise FileError.NotAccessible
 
-    _handle  : API.FileHandle
-    _mode    : FileMode
-    _path    : String
+            Struct.__typecall cls
+                _handle = handle
+                _mode = mode
 
-    inline __typecall (cls path mode)
-        handle := cls.API.open-file path mode
-        if (cls.API.is-handle-invalid? handle)
-            cls.API.log-error f"Could not open file ${path}"
-            raise FileError.NotAccessible
+        inline __drop (self)
+            'close-file self._handle
 
-        Struct.__typecall cls
-            _handle = handle
-            _mode = mode
+        fn __countof (self)
+            'get-file-length self._handle
 
-    inline __drop (self)
-        API-call close-file self._handle
+        fn tell (self)
+            'get-cursor-position self._handle
 
-    fn __countof (self)
-        API-call get-file-length self._handle
+        fn seek (self offset)
+            'set-cursor-position self._handle ((('tell self) as i64) + offset)
 
-    fn tell (self)
-        API-call get-cursor-position self._handle
+        fn seek-absolute (self position)
+            'set-cursor-position self._handle position
 
-    fn seek (self offset)
-        API-call set-cursor-position self._handle ((('tell self) as i64) + offset)
+        fn rewind (self)
+            'set-cursor-position self._handle 0
 
-    fn seek-absolute (self position)
-        API-call set-cursor-position self._handle position
+        fn read-elements (self container)
+            ptr count := 'data container
+            element-size := sizeof (elementof (typeof ptr))
+            expected-bytes := count * element-size
 
-    fn rewind (self)
-        API-call set-cursor-position self._handle 0
+            start-position := 'tell self
+            bytes-read := 'read-bytes self._handle ptr expected-bytes
+            elements-read := bytes-read // element-size
 
-    fn read-elements (self container)
-        ptr count := 'data container
-        element-size := sizeof (elementof (typeof ptr))
-        expected-bytes := count * element-size
+            if (bytes-read < expected-bytes)
+                if (not ('eof? self))
+                    raise FileError.ReadError
 
-        start-position := 'tell self
-        bytes-read := API-call read-bytes self._handle ptr expected-bytes
-        elements-read := bytes-read // element-size
+                # For larger elements, incomplete reads may occur.
+                # We should set the cursor back to the end of the last element read.
+                expected-advance := elements-read * element-size
+                if (expected-advance < bytes-read)
+                    'seek-absolute self (start-position + expected-advance)
 
-        if (bytes-read < expected-bytes)
-            if (not ('eof? self))
-                API-call log-error f"Error reading file ${self._path}"
-                raise FileError.ReadError
+            lslice container elements-read
 
-            # For larger elements, incomplete reads may occur.
-            # We should set the cursor back to the end of the last element read.
-            expected-advance := elements-read * element-size
-            if (expected-advance < bytes-read)
-                'seek-absolute self (start-position + expected-advance)
+        fn read-bytes (self count)
+            'read-elements self (heapbuffer u8 count)
 
-        lslice container elements-read
+        fn read-string (self count)
+            local result = String count
+            'resize result count
+            trim ('read-elements self result)
 
-    fn read-bytes (self count)
-        'read-elements self (heapbuffer u8 count)
+        fn read-all-bytes (self)
+            'seek-absolute self 0
+            'read-bytes self (countof self)
 
-    fn read-string (self count)
-        local result = String count
-        'resize result count
-        trim ('read-elements self result)
+        fn read-all-string (self)
+            'seek-absolute self 0
+            'read-string self (countof self)
 
-    fn read-all-bytes (self)
-        'seek-absolute self 0
-        'read-bytes self (countof self)
+        fn read-line (self)
+            local result : String
+            chunk := heapbuffer i8 1024
 
-    fn read-all-string (self)
-        'seek-absolute self 0
-        'read-string self (countof self)
+            while (not ('eof? self))
+                chunk := 'read-elements self (view chunk)
+                bytes-read := countof chunk
+                for i c in (enumerate chunk)
+                    if (c == "\n")
+                        'seek self (((i + 1) as i64) - (bytes-read as i64))
+                        'append result (lslice chunk i)
+                        return result
+                    elseif (c == "\r")
+                        local next-byte : i8
+                        if (i == (countof chunk))
+                            'read-elements self ((ViewBuffer (mutable@ i8)) &next-byte 1)
+                        else
+                            next-byte = chunk @ (i + 1)
 
-    fn read-line (self)
-        local result : String
-        chunk := heapbuffer i8 1024
+                        bytes-read as:= i64
+                        if (next-byte == "\n")
+                            'seek self (((i + 2) as i64) - bytes-read)
+                        else
+                            'seek self (((i + 1) as i64) - bytes-read)
 
-        while (not ('eof? self))
-            chunk := 'read-elements self (view chunk)
-            bytes-read := countof chunk
-            for i c in (enumerate chunk)
-                if (c == "\n")
-                    'seek self (((i + 1) as i64) - (bytes-read as i64))
-                    'append result (lslice chunk i)
-                    return result
-                elseif (c == "\r")
-                    local next-byte : i8
-                    if (i == (countof chunk))
-                        'read-elements self ((ViewBuffer (mutable@ i8)) &next-byte 1)
-                    else
-                        next-byte = chunk @ (i + 1)
+                        'append result (lslice chunk i)
+                        return result
 
-                    bytes-read as:= i64
-                    if (next-byte == "\n")
-                        'seek self (((i + 2) as i64) - bytes-read)
-                    else
-                        'seek self (((i + 1) as i64) - bytes-read)
+                'append result chunk
 
-                    'append result (lslice chunk i)
-                    return result
+            result
 
-            'append result chunk
+        inline lines (self)
+            Generator
+                inline start ()
+                    'rewind self
+                    view self
+                inline valid? (self)
+                    not ('eof? self)
+                inline current (self)
+                    'read-line self
+                inline next (self)
+                    view self
 
-        result
+        fn eof? (self)
+            'eof? self._handle
 
-    inline lines (self)
-        Generator
-            inline start ()
-                'rewind self
-                view self
-            inline valid? (self)
-                not ('eof? self)
-            inline current (self)
-                'read-line self
-            inline next (self)
-                view self
-
-    fn eof? (self)
-        API-call eof? self._handle
-
-    fn write (self data)
-        viewing data
-        ptr count := 'data data
-        element-size := sizeof (elementof (typeof ptr))
-        bytes-written := API-call write-bytes self._handle ptr (count * element-size)
-        elements-written := bytes-written // element-size
-        if (elements-written < count)
-            API-call log-error f"Error writing to file ${self._path}"
-            raise FileError.WriteError
+        fn write (self data)
+            viewing data
+            ptr count := 'data data
+            element-size := sizeof (elementof (typeof ptr))
+            bytes-written := 'write-bytes self._handle ptr (count * element-size)
+            elements-written := bytes-written // element-size
+            if (elements-written < count)
+                raise FileError.WriteError
 
 do
-    let FileStream FileMode FileError
-    locals;
+    let FileMode FileError
+    FileStream := make-filestream-type posix-files.PosixFile
+    local-scope;

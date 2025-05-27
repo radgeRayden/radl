@@ -1,6 +1,6 @@
 using import C.stdio
 
-import C.bindings
+import C.bindings ..traits
 from C.bindings.extern let feof
 
 inline get-mode-string (value)
@@ -20,9 +20,8 @@ inline get-mode-string (value)
     default
         assert false "invalid enum value"
 
-do
-    FileHandle := (mutable@ FILE)
-
+typedef PosixFile : (mutable@ FILE)
+    using traits.coerces-to-storage
     fn open-file (path mode)
         fopen path (get-mode-string mode)
 
@@ -56,8 +55,4 @@ do
     fn eof? (handle)
         (feof handle) as bool
 
-    fn log-error (msg)
-        using import print
-        print2 msg
-
-    local-scope;
+local-scope;
