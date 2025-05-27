@@ -19,6 +19,8 @@ inline make-filestream-type (handleT)
         _mode    : FileMode
         _path    : String
 
+        HandleType := handleT
+
         inline __typecall (cls path mode)
             handle := handleT.open-file path mode
             if (handleT.is-handle-invalid? handle)
