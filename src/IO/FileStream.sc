@@ -31,7 +31,7 @@ struct FileStream
             cls.API.log-error f"Could not open file ${path}"
             raise FileError.NotAccessible
 
-        super-type.__typecall cls
+        Struct.__typecall cls
             _handle = handle
             _mode = mode
 
