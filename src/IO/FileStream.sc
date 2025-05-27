@@ -12,17 +12,23 @@ enum FileMode plain
     Append
     Update
 
-struct FileStream
-    using import .posix-files
+sugar API-call (name args...)
+    qq
+        ([.] ([typeof] self) API [name])
+            unquote-splice args...
+run-stage;
 
-    _handle  : FileHandle
+struct FileStream
+    API := import .posix-files
+
+    _handle  : API.FileHandle
     _mode    : FileMode
     _path    : String
 
     inline __typecall (cls path mode)
-        handle := open-file path mode
-        if (is-handle-invalid? handle)
-            log-error f"Could not open file ${path}"
+        handle := cls.API.open-file path mode
+        if (cls.API.is-handle-invalid? handle)
+            cls.API.log-error f"Could not open file ${path}"
             raise FileError.NotAccessible
 
         super-type.__typecall cls
@@ -30,22 +36,22 @@ struct FileStream
             _mode = mode
 
     inline __drop (self)
-        close-file self._handle
+        API-call close-file self._handle
 
     fn __countof (self)
-        get-file-length self._handle
+        API-call get-file-length self._handle
 
     fn tell (self)
-        get-cursor-position self._handle
+        API-call get-cursor-position self._handle
 
     fn seek (self offset)
-        set-cursor-position self._handle ((('tell self) as i64) + offset)
+        API-call set-cursor-position self._handle ((('tell self) as i64) + offset)
 
     fn seek-absolute (self position)
-        set-cursor-position self._handle position
+        API-call set-cursor-position self._handle position
 
     fn rewind (self)
-        set-cursor-position self._handle 0
+        API-call set-cursor-position self._handle 0
 
     fn read-elements (self container)
         ptr count := 'data container
@@ -53,12 +59,12 @@ struct FileStream
         expected-bytes := count * element-size
 
         start-position := 'tell self
-        bytes-read := read-bytes self._handle ptr expected-bytes
+        bytes-read := API-call read-bytes self._handle ptr expected-bytes
         elements-read := bytes-read // element-size
 
         if (bytes-read < expected-bytes)
             if (not ('eof? self))
-                log-error f"Error reading file ${self._path}"
+                API-call log-error f"Error reading file ${self._path}"
                 raise FileError.ReadError
 
             # For larger elements, incomplete reads may occur.
@@ -130,16 +136,16 @@ struct FileStream
                 view self
 
     fn eof? (self)
-        eof? self._handle
+        API-call eof? self._handle
 
     fn write (self data)
         viewing data
         ptr count := 'data data
         element-size := sizeof (elementof (typeof ptr))
-        bytes-written := write-bytes self._handle ptr (count * element-size)
+        bytes-written := API-call write-bytes self._handle ptr (count * element-size)
         elements-written := bytes-written // element-size
         if (elements-written < count)
-            log-error f"Error writing to file ${self._path}"
+            API-call log-error f"Error writing to file ${self._path}"
             raise FileError.WriteError
 
 do
