@@ -142,6 +142,6 @@ inline make-filestream-type (handleT)
                 raise FileError.WriteError
 
 do
-    let FileMode FileError
+    let FileMode FileError make-filestream-type
     FileStream := make-filestream-type posix-files.PosixFile
     local-scope;
