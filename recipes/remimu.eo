@@ -1,0 +1,37 @@
+VERSION := "main"
+SUMMARY := "Single-file header-only regex engine"
+
+archive := (download "https://github.com/wareya/Remimu/archive/{VERSION}.tar.gz")
+source-path := (commonpath (extract archive))
+
+fn shared-library (libname)
+    then
+        bindir := (mkdir "{source-path}/build")
+        cmd := (shell bindir)
+        cmd "gcc -shared -fPIC -O2 -o {libname} -DREMIMU_FUNC_VISIBILITY=extern -I.. -x c {source-path}/remimu.h"
+        "{bindir}/{libname}"
+
+bindings :=
+    download "https://raw.githubusercontent.com/ScopesCommunity/eo-packages/main/bindings/remimu.sc"
+
+package remimu
+    summary SUMMARY
+    platform linux unknown
+    version VERSION
+
+    libname := "libremimu.so"
+    alias "/lib/{libname}" (shared-library libname)
+
+    alias "/include/remimu.h" "{source-path}/remimu.h"
+    alias "/lib/scopes/packages/remimu.sc" bindings
+
+package remimu
+    summary SUMMARY
+    platform windows-mingw
+    version VERSION
+
+    libname := "remimu.dll"
+    alias "/lib/{libname}" (shared-library libname)
+
+    alias "/include/remimu.h" "{source-path}/remimu.h"
+    alias "/lib/scopes/packages/remimu.sc" bindings
