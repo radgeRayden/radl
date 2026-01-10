@@ -1,0 +1,183 @@
+using import struct Array String slice
+import .random
+
+sugar set-scope (scope)
+    scope env := sc_expand scope '() sugar-scope
+    _ '() next-expr (scope as Scope)
+
+spice static-join-scopes (...)
+    fold (result = (Scope)) for s in ('args ...)
+        .. result (s as Scope)
+
+spice gensym (name)
+    `[('unique Symbol (name as string))]
+
+run-stage;
+
+parent-scope-sym := gensym "parent-scope"
+context-sym := gensym "context"
+
+sugar sugar-context (scope parent body...)
+    scope env := sc_expand scope '() sugar-scope
+    parent env := sc_expand parent '() sugar-scope
+    scope as:= Scope
+    parent as:= Scope
+    qq
+        [do]
+            [set-scope] [(parent .. scope)]
+            [let] [parent-scope-sym] = [parent]
+            unquote-splice body...
+
+run-stage;
+
+let subcommand-kw =
+    do
+        sugar arg (name ': T (curly-list args...) ...)
+            print name T (uncomma args...)
+            qq
+                'define [context-sym]
+
+        sugar arg? (name ': T (curly-list args...) ...)
+            print name T (uncomma args...)
+            qq
+                [(Scope)]
+
+        sugar flag (name short long)
+            qq
+                [(Scope)]
+
+        sugar execute (body...)
+            qq
+                do
+                    [set-scope] [parent-scope-sym]
+                    [(Scope)]
+        locals;
+
+run-stage;
+
+let argv-definition-kw =
+    do
+        sugar subcommand (name args...)
+            qq
+                [sugar-context] [subcommand-kw] [parent-scope-sym]
+                    unquote-splice args...
+
+        sugar alias ((alias '= subcommand))
+
+        sugar options (...)
+            print ...
+
+run-stage;
+
+inline... parse-args (name : String, args : (Array String), ctx : Scope)
+    using import scopetools
+
+    inline subcommand-min-argc (subcommand)
+        va-lfold 0
+            inline (__ next result)
+                static-if (not next.optional?)
+                    result + 1
+                else
+                    result
+            scope-unpack subcommand.args
+
+    fn exit-with-usage (code)
+        print "Usage: correctly."
+        exit code
+
+    fn try-convert (arg)
+
+    inline parse-execute (subcommand args)
+        print (scope-unpack subcommand.args.input)
+        if (empty? args)
+            static-if ((subcommand-min-argc subcommand) == 0)
+                subcommand.execute;
+            else
+                return false
+
+        for i arg in (enumerate args)
+            # is this an option pair?
+            :: opt-pair?
+            # check for form --option=arg
+            # check for form --option arg
+            if ((i + 1) < (countof args))
+                scope-key-lookup subcommand.arg-names arg
+                    inline (name)
+                        static-if (none? name)
+                            merge opt-pair?
+                        else
+                            opt := getattr subcommand.args name
+                            try
+                                opt.value = try-convert (args @ (i + 1)) opt.type
+                                repeat (i + 1) (i + 1)
+                            else
+                                merge opt-pair?
+            opt-pair? ::
+            # is this a flag?
+            :: flag?
+            scope-key-lookup subcommand.flag-names arg
+                inline (name)
+                    static-if (none? name)
+                        merge flag?
+                    else
+                        opt := getattr subcommand.flags name
+                        try
+                            opt.value = try-convert (args @ (i + 1)) bool
+                            repeat (i + 1) (i + 1)
+                        else
+                            merge flag?
+            flag? ::
+            # is this a positional arg?
+        false
+
+    defsub := (getattr ctx.subcommands (Symbol ctx.options.default-subcommand))
+    if (empty? args)
+        min-argc := subcommand-min-argc defsub
+
+        static-if (min-argc == 0)
+            defsub.execute;
+        else
+            exit-with-usage 1
+    else
+        arg0 := (args @ 0)
+        success? :=
+            scope-key-lookup ctx.subcommands arg0
+                inline (subcommand)
+                    static-if (none? subcommand)
+                        false
+                    else
+                        parse-execute subcommand (rslice args 1)
+        if (not success?)
+            parse-execute defsub args
+case (argc : i32, argv : (@ rawstring), ctx : Scope)
+    assert (argc > 0) "invalid argc"
+    name := String (argv @ 0)
+
+    local args : (Array String)
+    for i in (range 1 argc)
+        'append args (String (argv @ i))
+
+    this-function name args ctx
+
+sugar define-argv-parser (body...)
+    qq
+        # [sugar-context] [subscope] [sugar-scope]
+        #     fn (argc argv)
+        #         [static-join-scopes]
+        #             unquote-splice body...
+        #         [parse-args] argc argv [context-sym]
+        ()
+
+fn normalize-script-args (name argc argv)
+    new-argv := malloc-array rawstring (argc + 1) # let it leak
+    new-argv @ 0 = (&name as rawstring)
+
+    for i in (range argc)
+        new-argv @ (i + 1) = (argv @ i)
+    _ (argc + 1) new-argv
+
+do
+    let normalize-script-args define-argv-parser parse-args
+    locals;
+
+# vim: set ft=scopes
