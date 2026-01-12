@@ -1,5 +1,3 @@
-using import Array enum Map slice struct String radl.regex itertools Option radl.strfmt
-from (import radl.String+) let starts-with? ASCII-tolower
 from (import C.stdlib) let strtoll strtod
 from (import UTF-8) let decoder char32
 
@@ -53,7 +51,7 @@ spice Symbol->String (sym)
     `[(sym as Symbol as string)]
 
 spice collect-enum-fields (ET)
-    using import Array radl.String+
+    using import Array .String+
 
     ET as:= type
     local args : (Array Symbol)
@@ -78,7 +76,7 @@ inline collect-enum-fields (ET)
     collect-enum-fields ET
 
 inline match-string-enum (ET value)
-    using import hash radl.String+ switcher print
+    using import hash .String+ switcher print
     tolower := ASCII-tolower
 
     call
