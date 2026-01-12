@@ -53,7 +53,7 @@ spice Symbol->String (sym)
     `[(sym as Symbol as string)]
 
 spice collect-enum-fields (ET)
-    using import Array radl.String+
+    using import Array .String+
 
     ET as:= type
     local args : (Array Symbol)
@@ -78,7 +78,7 @@ inline collect-enum-fields (ET)
     collect-enum-fields ET
 
 inline match-string-enum (ET value)
-    using import hash radl.String+ switcher print
+    using import hash .String+ switcher print
     tolower := ASCII-tolower
 
     call
