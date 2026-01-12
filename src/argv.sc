@@ -358,7 +358,7 @@ typedef ArgumentParser
                 assert false
 
         for k v in parameters.named-parameters
-            if ((not v.done?) and v.mandatory?)
+            if ((not v.done?) and v.mandatory? and (not v.flag?))
                 raise
                     ArgumentParsingError
                         kind = 'MissingMandatoryParameter
