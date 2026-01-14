@@ -49,9 +49,6 @@ struct ArgumentParsingError
 # 6. If a field is defined as an Option, that is an optional parameter. It won't cause an error if
     it isn't found in the argument stream.
 
-spice Symbol->String (sym)
-    `[(sym as Symbol as string)]
-
 spice collect-enum-fields (ET)
     using import Array .String+
 
@@ -191,7 +188,7 @@ inline ParameterMap (sourceT)
                     let flag? =
                         static-if option? (T.Type == bool)
                         else (T == bool)
-                    name := String (Symbol->String k)
+                    name := String (k as zarray)
                     'set self.named-parameters (copy name)
                         typeinit
                             name = (copy name)
@@ -226,7 +223,7 @@ inline ParameterMap (sourceT)
                     check-alias ContextType v "short name of undefined parameter"
                     let short-name long-name =
                         char32 (static-eval (k as Symbol as string))
-                        Symbol->String v
+                        v as zarray
                     'set self.short-names short-name (copy (String long-name))
 
         fn define-aliases (self)
@@ -237,15 +234,15 @@ inline ParameterMap (sourceT)
                     va-map
                         inline (alias)
                             'set self.parameter-aliases 
-                                copy (String (Symbol->String alias))
-                                copy (String (Symbol->String original))
+                                String (alias as zarray)
+                                String (original as zarray)
                         aliases...
 
         fn define-positional-parameters (self)
             map-over-metadata 'PositionalParameters
                 inline (param)
                     check-alias ContextType param "undefined positional parameter"
-                    'append self.positional-parameters (copy (String (Symbol->String param)))
+                    'append self.positional-parameters (copy (String (param as zarray)))
 
         inline __typecall (cls)
             local self := super-type.__typecall cls
