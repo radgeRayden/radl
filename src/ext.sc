@@ -11,22 +11,6 @@ sugar module-exists? (name)
     qq
         [module-exists?] [base-dir] [(name as Symbol as string)] [env]
 
-sugar stop-expansion-if (condition)
-    let condition =
-        sugar-match condition
-        case (condition)
-            (sc_expand condition '() sugar-scope) as bool
-        case ('not condition)
-            not
-                (sc_expand condition '() sugar-scope) as bool
-        default
-            error "incorrect syntax"
-
-    if condition
-        _ '() '()
-    else
-        _ '() next-expr
-
 inline enum-bitfield (ET outT values...)
     let values... =
         va-map
@@ -40,8 +24,22 @@ inline typeinit@ (...)
         static-assert (T < pointer)
         imply (& (local := (elementof T) ...)) T
 
+""""Small inline form with automatic parameter binding. Access the first argument as $
+    or numbered parameters $0 to $7. Eg.: 
+    ```
+    ((λ print $) "hello world")
+    ((λ print $0 "is" $1) "everyone" "beautiful")
+    ```
+sugar λ (body...)
+    body... as:= list
+    qq
+        [inline] ($0 $1 $2 $3 $4 $5 $6 $7)
+            $ := $0
+            [body...]
+
 do
-    let module-exists? stop-expansion-if enum-bitfield typeinit@
+    let module-exists? enum-bitfield typeinit@ λ
     |> := va-map
+    curly-list := typeinit@
 
     local-scope;
