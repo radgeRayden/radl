@@ -44,8 +44,8 @@ test-compiler-error
 #
 
 do
-    local a : i32 10
-    local b : i32 20
+    local a : i32 = 10
+    local b : i32 = 20
 
     test
         ==
@@ -77,8 +77,8 @@ test
         "banana grape"
 
 do
-    local a : i32 1
-    local b : i32 2
+    local a : i32 = 1
+    local b : i32 = 2
     test
         ==
             f"${a} + ${b} = ${a + b}"
