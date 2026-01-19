@@ -13,6 +13,7 @@ let C = (import C.string)
 let stbsp = (import stb.sprintf)
 
 fn format (fmt ...)
+    viewing ...
     let ... =
         va-map
             inline (val)
@@ -90,6 +91,7 @@ fn parse-template (input)
 
     result
 
+# FIXME: this is not needed anymore and should be removed (replace with tostring).
 fn CEnum->String (T)
     T as:= type
     inline gen-switch (value)
@@ -152,7 +154,7 @@ fn value->format-specifier (val)
     elseif (T < CEnum)
         _ str"%s" `([(CEnum->String T)] val)
     elseif (T < Arguments)
-        vvv bind specifiers args
+        vvv bind specifiers
         fold (specifiers = str"") for arg in ('args val)
             let specifier ?? =
                 (this-function arg)
