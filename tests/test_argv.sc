@@ -1,4 +1,6 @@
-using import argv strfmt struct Option String
+using import Array argv enum Map strfmt struct Option String print ext
+
+# TEST: BASIC MODE
 struct ProgramArguments
     name : String
     age : (Option i32)
@@ -8,8 +10,7 @@ struct ProgramArguments
 
 using import testing
 
-inline validate-args (T args...)
-    local args = arrayof rawstring args...
+inline validate-args (T args)
     argc argv := countof args, &args
     argparser := ((ArgumentParser T))
     try ('parse argparser argc argv) true
@@ -17,9 +18,75 @@ inline validate-args (T args...)
         report "Error while parsing arguments:" ex.index ex.kind
         false
 
-test (validate-args ProgramArguments "program" "Maria" "--show-age?")
+inline args> (args)
+    local = arrayof rawstring (|> (λ $ as zarray) (unpack args))
 
-# EXAMPLE PROGRAM
+test
+    validate-args ProgramArguments 
+        args> '( program Maria --show-age? )
+
+# TEST: COMMANDS MODE
+do
+    enum RunModes plain
+        timing-accurate
+        fast
+
+    struct CLICommandAssemble
+        file : String
+        output : String
+
+        ParameterAliases := '[(file filename)]
+        PositionalParameters := '(file output)
+
+    struct CLICommandRun
+        binary : String
+        mode : (Option RunModes)
+
+        PositionalParameters := '(binary)
+
+    enum CLICommands
+        # the command parameter name can go in the struct name
+        assemble : CLICommandAssemble
+        run : CLICommandRun
+
+    # vvv test
+    # validate-args CLICommands
+    #     args> '( program assemble --filename program.asm --output=program.bin )
+
+    # vvv test
+    # validate-args CLICommands
+    #     args> '( program run program.bin --mode=fast )
+
+# Example that tests most features. It's not exactly like the gcc command line,
+  and accepts some things that gcc wouldn't.
+do
+    enum GCCWarningLevel plain
+
+    struct GCCArguments
+        input-files : (Array String)
+        output : (Option String)
+        help : bool
+        version : bool
+        verbose : bool
+        library : (Option (Array String))
+        define-macro : (Option (Map String String))
+        warning-level : (Option (Array GCCWarningLevel))
+
+        ParameterShortNames := '[
+            v verbose,
+            l library,
+            D define-macro,
+            O optimization,
+            W warning-level,
+        ]
+
+    # test
+    #     validate-args GCCArguments \
+    #         "fake-gcc" "-O2" "main.c" "stuff.c" "obj/stuff.o" "-o" "game.out" "-Wall" "-Wextra" \
+    #         "-DIMPLEMENT_EVERYTHING" "-D"
+    ()
+
+# EXAMPLE PROGRAMS
 do
     fn main (argc argv)
         local argparser : (ArgumentParser ProgramArguments)
@@ -38,7 +105,7 @@ do
             message ..= " decided not to share their age."
         print message
         0
-    local args = arrayof rawstring "program" "--name" "Maria" "--show-age?"
+    args := args> '( program --name Maria --show-age? )
     main (countof args) &args
 
 ()
