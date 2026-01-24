@@ -49,13 +49,13 @@ do
         assemble : CLICommandAssemble
         run : CLICommandRun
 
-    # vvv test
-    # validate-args CLICommands
-    #     args> '( program assemble --filename program.asm --output=program.bin )
+    vvv test
+    validate-args CLICommands
+        args> '( program assemble --filename program.asm --output=program.bin )
 
-    # vvv test
-    # validate-args CLICommands
-    #     args> '( program run program.bin --mode=fast )
+    vvv test
+    validate-args CLICommands
+        args> '( program run program.bin --mode=fast )
 
 # Example that tests most features. It's not exactly like the gcc command line,
   and accepts some things that gcc wouldn't.

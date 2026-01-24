@@ -1,5 +1,5 @@
-using import Array enum Map slice struct String radl.regex itertools Option radl.strfmt
-from (import radl.String+) let starts-with? ASCII-tolower
+using import Array enum Map slice struct String .regex itertools Option .strfmt switcher hash
+from (import .String+) let starts-with? ASCII-tolower
 from (import C.stdlib) let strtoll strtod
 from (import UTF-8) let decoder char32
 
@@ -17,6 +17,7 @@ enum ArgumentParsingErrorKind plain
     UnrecognizedParameter
     AlreadyProcessed
     MissingMandatoryParameter
+    NoCommandSpecified
 
     # data conversion errors
     UnsupportedIntegerType
@@ -55,15 +56,22 @@ spice collect-enum-fields (ET)
     ET as:= type
     local args : (Array Symbol)
 
-    # Scopes CEnum or C enum?
-    try
-        for arg in ('args ('@ ET '__fields__))
-            'append args (('@ (arg as type) 'Name) as Symbol)
+    # Scopes C/Enum or C enum?
+    if (ET < Enum)
+        fields := ('@ ET '__fields) as type
+        for arg in ('elements fields)
+            arg as:= type
+            'append args (('keyof arg) as Symbol)
+    elseif (ET < CEnum)
+        try
+            for arg in ('args ('@ ET '__fields__))
+                'append args (('@ (arg as type) 'Name) as Symbol)
+        else
+            for k v in ('symbols ET)
+                if (not (starts-with? (String (k as string)) "_"))
+                    'append args k
     else
-        for k v in ('symbols ET)
-            if (not (starts-with? (String (k as string)) "_"))
-                'append args k
-
+        error "Must be an enum type"
     sc_argument_list_map_new (i32 (countof args))
         inline (i)
             arg := args @ i
@@ -75,7 +83,7 @@ inline collect-enum-fields (ET)
     collect-enum-fields ET
 
 inline match-string-enum (ET value)
-    using import hash .String+ switcher print
+    using import hash .String+ print
     tolower := ASCII-tolower
 
     call
@@ -254,19 +262,15 @@ inline ParameterMap (sourceT)
 
         unlet map-over-metadata
 
-typedef ArgumentParser
-    inline __typecall (cls)
-        bitcast none cls
-
-    fn... parse (self, argc, argv : (@ rawstring))
-        selfT := typeof self
-        local ctx : selfT.ContextType
-        local parameters : (ParameterMap selfT.ContextType)
+inline parse-into (T)
+    fn "parse-into" (first-index argc argv)
+        local ctx : T
+        local parameters : (ParameterMap T)
         local arguments : (Array Argument)
 
         # canonicalize argument list
         local pair-pattern := try! (RegexPattern "^--(.+?)=(.+)$")
-        for i in (range 1 argc)
+        for i in (range first-index argc)
             arg := 'from-rawstring String (argv @ i)
             try ('unwrap ('match pair-pattern arg))
             then (info)
@@ -364,6 +368,41 @@ typedef ArgumentParser
                         name = (copy v.name)
 
         ctx
+
+typedef ArgumentParser
+    inline __typecall (cls)
+        bitcast none cls
+
+    fn... parse (self, argc, argv : (@ rawstring))
+        selfT := typeof self
+
+        static-if (selfT.ContextType < Enum)
+            ET := selfT.ContextType
+
+            inline default-command ()
+                static-try
+                    fT := ET.DefaultCommand
+                    fT ((parse-into) 1 argc argv)
+                else
+                    raise (ArgumentParsingError -1 'NoCommandSpecified)
+
+            switcher command-dispatch
+                va-map
+                    inline (k)
+                        case (static-eval (hash (String (k as string))))
+                            fT := getattr ET k
+                            fT ((parse-into (elementof fT.Type 0)) 2 argc argv)
+                    collect-enum-fields ET
+                default
+                    default-command;
+
+            if (argc > 1)
+                command-dispatch (hash ('from-rawstring String (argv @ 1)))
+            else
+                default-command;
+
+        else
+            (parse-into selfT.ContextType) 1 argc argv
 
 inline ArgumentParser (T)
     typedef (.. "ArgumentParser<" (tostring T) ">") < ArgumentParser : (storageof Nothing)
