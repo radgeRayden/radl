@@ -1,3 +1,74 @@
+""""argv.sc
+
+    Takes a command line parameter specification in the form of a struct (basic mode) or an Enum
+    (commands mode) and generates a parser that populates a new instance of the provided type with the
+    arguments forwarded from the command line.
+
+    Example (basic mode):
+    ```scopes
+    using import radl.argv radl.strfmt struct Option String
+    struct ProgramArguments
+        name : String
+        age : (Option i32)
+        show-age? : bool
+
+    fn main (argc argv)
+        local argparser : (ArgumentParser ProgramArguments)
+        let args =
+            try ('parse argparser argc argv)
+            except (ex) 
+                print "Error while parsing arguments:" ex.index ex.kind
+                exit 1
+
+        local message := copy args.name
+        if args.show-age?
+            try ('unwrap args.age)
+            then (age) (message ..= f" is ${age} years old.")
+            else (message ..= " is of unknown age.")
+        else
+            message ..= " decided not to share their age."
+        print message
+        0
+    ```
+
+    ## Type Definition Semantics
+
+    ### Commands Mode
+
+    The commands mode is a wrapper around the basic mode. When an Enum type is supplied as the context type,
+    each tag should have a different type corresponding to a command with the same semantics as the basic 
+    mode (that is, commands mode allows you to decide between different command line formats based on the
+    first argument provided by the user).
+
+    The symbol `DefaultCommand` may be provided in the enum type to select a command if the user didn't supply
+    any. It must be a symbol corresponding to the name of the field.
+    Example:
+    ```scopes
+    # matches the command line `program [args]` or `program assemble [args]` or `program run [args]`
+
+    enum CLIArguments
+        assemble : CLIAssembleArguments
+        run : CLIRunArguments
+
+        DefaultCommand := 'assemble
+
+    fn main (argc argv)
+        local argparser : (ArgumentParser CLIArguments)
+        let cmd =
+            try ('parse argparser argc argv)
+            except (ex) 
+                print "Error while parsing arguments:" ex.index ex.kind
+                exit 1
+
+        dispatch cmd
+        case assemble (args)
+            command-assemble args
+        case run (args)
+            command-run args
+        default () # shouldn't happen
+        0
+    ```
+    See `tests/test_argv.sc` for more usage examples.
 using import Array enum Map slice struct String .regex itertools Option .strfmt switcher hash
 from (import .String+) let starts-with? ASCII-tolower
 from (import C.stdlib) let strtoll strtod
@@ -28,27 +99,6 @@ struct ArgumentParsingError
     index : i32
     kind : ArgumentParsingErrorKind
     name : (Option String)
-
-# DESIGN NOTES
-# every parameter resolves to a full name canonical named parameter. Positional, long and
-  short named flags are linked to a corresponding field in the context struct, and their shape
-  in the argument list works as a shortcut on how to set this property (eg. flags setting a
-  parameter to `true` without an explicit value).
-# rules for defining the parameter struct
-# 1. named parameters are defined as fields in the struct. Numeric types, strings and 
-    booleans are allowed. Named parameters are prefixed with `--` in the command line.
-# 2. parameters defined as booleans are flags and may take no arguments (implying true). Only the 
-    form `--flag=value` takes an argument. An argument following a flag not in this format will be
-    interpreted as a parameter name or positional argument.
-# 3. A scope called `ParameterShortNames` defines short single character names that alias full
-    name parameters. In the case of flags, those can be combined to activate multiple flags at once.
-    Combined flags never take arguments. Short names are prefixed with `-` in the command line.
-# 4. A scope called `ParameterAliases` defines alternative names for existing named parameters.
-# 5. Positional parameters must have a full name equivalent. The field `PositionalParameters` defines
-    a symbol list. The position of the symbol in the list corresponds to its position in the arguments
-    list. The symbol corresponds to the parameter full name (field in the struct).
-# 6. If a field is defined as an Option, that is an optional parameter. It won't cause an error if
-    it isn't found in the argument stream.
 
 spice collect-enum-fields (ET)
     using import Array .String+
