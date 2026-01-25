@@ -381,8 +381,8 @@ typedef ArgumentParser
 
             inline default-command ()
                 static-try
-                    fT := ET.DefaultCommand
-                    fT ((parse-into) 1 argc argv)
+                    fT := getattr ET ET.DefaultCommand
+                    fT ((parse-into (elementof fT.Type 0)) 1 argc argv)
                 else
                     raise (ArgumentParsingError -1 'NoCommandSpecified)
 
