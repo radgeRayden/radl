@@ -98,7 +98,7 @@ enum ArgumentParsingErrorKind plain
 struct ArgumentParsingError
     index : i32
     kind : ArgumentParsingErrorKind
-    name : (Option String)
+    what : (Option String)
 
 spice collect-enum-fields (ET)
     using import Array .String+
@@ -341,11 +341,11 @@ inline parse-into (T)
 
             'append arguments (Argument.Value arg)
 
-        inline error (i kind)
+        inline error (i kind what)
             static-if ((typeof kind) == Symbol)
-                raise (ArgumentParsingError i (getattr ArgumentParsingErrorKind kind))
+                raise (ArgumentParsingError i (getattr ArgumentParsingErrorKind kind) what)
             else
-                raise (ArgumentParsingError i kind)
+                raise (ArgumentParsingError i kind what)
 
         inline get-arg (i)
             if (i >= (countof arguments))
@@ -361,9 +361,11 @@ inline parse-into (T)
                 break;
 
             inline process (param v i)
-                if param.done?
-                    error i 'AlreadyProcessed
-                else (param.done? = true)
+                if param.done? 
+                    error i 'AlreadyProcessed (copy param.name)
+                else 
+                    param.done? = true
+
                 try (param.execute v ctx)
                 except (ex) (error i ex)
 
@@ -385,13 +387,13 @@ inline parse-into (T)
                     else
                         error next 'IncompleteArgument
                     repeat (i + 2)
-                else (error i 'UnrecognizedParameter)
+                else (error i 'UnrecognizedParameter (copy k))
 
             case Pair (k v)
                 try ('get parameters.named-parameters k)
                 then (param)
                     process param v i
-                else (error i 'UnrecognizedParameter)
+                else (error i 'UnrecognizedParameter (copy k))
                 i + 1
             case Flag (f)
                 try (get-flag f)
@@ -400,7 +402,7 @@ inline parse-into (T)
                 i + 1
             case Value (v)
                 if (empty? parameters.positional-parameters)
-                    error i 'UnexpectedArgument
+                    error i 'UnexpectedArgument (copy v)
                 name := 'remove parameters.positional-parameters 0
                 try ('get parameters.named-parameters name)
                 then (param)
@@ -415,7 +417,7 @@ inline parse-into (T)
                 raise
                     ArgumentParsingError
                         kind = 'MissingMandatoryParameter
-                        name = (copy v.name)
+                        what = (copy v.name)
 
         ctx
 
